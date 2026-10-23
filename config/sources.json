@@ -1,0 +1,422 @@
+[
+ {
+  "name": "CERT-FR Alertes",
+  "feed_url": "https://www.cert.ssi.gouv.fr/alerte/feed/",
+  "site_url": "https://www.cert.ssi.gouv.fr",
+  "lang": "fr",
+  "categories": [
+   "security"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": true
+ },
+ {
+  "name": "CERT-FR Avis",
+  "feed_url": "https://www.cert.ssi.gouv.fr/avis/feed/",
+  "site_url": "https://www.cert.ssi.gouv.fr",
+  "lang": "fr",
+  "categories": [
+   "security"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": true
+ },
+ {
+  "name": "Microsoft MSRC",
+  "feed_url": "https://api.msrc.microsoft.com/update-guide/rss",
+  "site_url": "https://msrc.microsoft.com",
+  "lang": "en",
+  "categories": [
+   "security"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": true
+ },
+ {
+  "name": "Google Security Blog",
+  "feed_url": "https://security.googleblog.com/feeds/posts/default",
+  "site_url": "https://security.googleblog.com",
+  "lang": "en",
+  "categories": [
+   "security"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": true
+ },
+ {
+  "name": "BleepingComputer",
+  "feed_url": "https://www.bleepingcomputer.com/feed/",
+  "site_url": "https://www.bleepingcomputer.com",
+  "lang": "en",
+  "categories": [
+   "security"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": true
+ },
+ {
+  "name": "Krebs on Security",
+  "feed_url": "https://krebsonsecurity.com/feed/",
+  "site_url": "https://krebsonsecurity.com",
+  "lang": "en",
+  "categories": [
+   "security"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": true
+ },
+ {
+  "name": "GitHub Blog",
+  "feed_url": "https://github.blog/feed/",
+  "site_url": "https://github.blog",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "GitHub Changelog",
+  "feed_url": "https://github.blog/changelog/feed/",
+  "site_url": "https://github.blog/changelog",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Node.js Blog",
+  "feed_url": "https://nodejs.org/en/feed/blog.xml",
+  "site_url": "https://nodejs.org",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "React Blog",
+  "feed_url": "https://react.dev/rss.xml",
+  "site_url": "https://react.dev",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Chrome Releases",
+  "feed_url": "https://chromereleases.googleblog.com/feeds/posts/default",
+  "site_url": "https://chromereleases.googleblog.com",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Mozilla Hacks",
+  "feed_url": "https://hacks.mozilla.org/feed/",
+  "site_url": "https://hacks.mozilla.org",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Kubernetes Blog",
+  "feed_url": "https://kubernetes.io/feed.xml",
+  "site_url": "https://kubernetes.io/blog",
+  "lang": "en",
+  "categories": [
+   "network-cloud"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Docker Blog",
+  "feed_url": "https://www.docker.com/blog/feed/",
+  "site_url": "https://www.docker.com/blog",
+  "lang": "en",
+  "categories": [
+   "network-cloud"
+  ],
+  "reliability": 4,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Cloudflare Blog",
+  "feed_url": "https://blog.cloudflare.com/rss/",
+  "site_url": "https://blog.cloudflare.com",
+  "lang": "en",
+  "categories": [
+   "network-cloud"
+  ],
+  "reliability": 4,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "LWN.net",
+  "feed_url": "https://lwn.net/headlines/rss",
+  "site_url": "https://lwn.net",
+  "lang": "en",
+  "categories": [
+   "systems"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Phoronix",
+  "feed_url": "https://www.phoronix.com/rss.php",
+  "site_url": "https://www.phoronix.com",
+  "lang": "en",
+  "categories": [
+   "systems"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Hugging Face Blog",
+  "feed_url": "https://huggingface.co/blog/feed.xml",
+  "site_url": "https://huggingface.co/blog",
+  "lang": "en",
+  "categories": [
+   "ai"
+  ],
+  "reliability": 4,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "OpenAI News",
+  "feed_url": "https://openai.com/news/rss.xml",
+  "site_url": "https://openai.com/news",
+  "lang": "en",
+  "categories": [
+   "ai"
+  ],
+  "reliability": 4,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "NVIDIA Blog",
+  "feed_url": "https://blogs.nvidia.com/feed/",
+  "site_url": "https://blogs.nvidia.com",
+  "lang": "en",
+  "categories": [
+   "hardware"
+  ],
+  "reliability": 4,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "ServeTheHome",
+  "feed_url": "https://www.servethehome.com/feed/",
+  "site_url": "https://www.servethehome.com",
+  "lang": "en",
+  "categories": [
+   "selfhost"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Raspberry Pi News",
+  "feed_url": "https://www.raspberrypi.com/news/feed/",
+  "site_url": "https://www.raspberrypi.com/news",
+  "lang": "en",
+  "categories": [
+   "selfhost"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Android Developers Blog",
+  "feed_url": "https://android-developers.googleblog.com/feeds/posts/default",
+  "site_url": "https://android-developers.googleblog.com",
+  "lang": "en",
+  "categories": [
+   "bigtech-mobile"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Apple Developer News",
+  "feed_url": "https://developer.apple.com/news/rss/news.rss",
+  "site_url": "https://developer.apple.com/news",
+  "lang": "en",
+  "categories": [
+   "bigtech-mobile"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Rock Paper Shotgun",
+  "feed_url": "https://www.rockpapershotgun.com/feed",
+  "site_url": "https://www.rockpapershotgun.com",
+  "lang": "en",
+  "categories": [
+   "gaming"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Ars Technica",
+  "feed_url": "https://feeds.arstechnica.com/arstechnica/index",
+  "site_url": "https://arstechnica.com",
+  "lang": "en",
+  "categories": [
+   "industry"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Next",
+  "feed_url": "https://next.ink/feed/",
+  "site_url": "https://next.ink",
+  "lang": "fr",
+  "categories": [
+   "industry"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Korben",
+  "feed_url": "https://korben.info/feed",
+  "site_url": "https://korben.info",
+  "lang": "fr",
+  "categories": [
+   "industry"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "NASA",
+  "feed_url": "https://www.nasa.gov/feed/",
+  "site_url": "https://www.nasa.gov",
+  "lang": "en",
+  "categories": [
+   "space"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Frandroid",
+  "feed_url": "https://www.frandroid.com/feed",
+  "site_url": "https://www.frandroid.com",
+  "lang": "fr",
+  "categories": [
+   "bigtech-mobile"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Clubic",
+  "feed_url": "https://www.clubic.com/feed/news.rss",
+  "site_url": "https://www.clubic.com",
+  "lang": "fr",
+  "categories": [
+   "industry"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Clubic Cybersécurité",
+  "feed_url": "https://www.clubic.com/feed/antivirus-securite-informatique/rss",
+  "site_url": "https://www.clubic.com",
+  "lang": "fr",
+  "categories": [
+   "security"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Les Numériques",
+  "feed_url": "https://www.lesnumeriques.com/rss-news.xml",
+  "site_url": "https://www.lesnumeriques.com",
+  "lang": "fr",
+  "categories": [
+   "hardware"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "01net",
+  "feed_url": "https://www.01net.com/actualites/feed/",
+  "site_url": "https://www.01net.com",
+  "lang": "fr",
+  "categories": [
+   "industry"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "01net Sécurité",
+  "feed_url": "https://www.01net.com/actualites/securite/feed/",
+  "site_url": "https://www.01net.com",
+  "lang": "fr",
+  "categories": [
+   "security"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ }
+]

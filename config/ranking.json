@@ -1,0 +1,8 @@
+{
+  "weights": { "recency": 0.3, "reliability": 0.2, "official": 0.15, "severity": 0.25, "categoryPref": 0.1 },
+  "halfLifeHours": 24,
+  "undatedPenalty": 0.5,
+  "thresholds": { "critical": 80, "important": 60, "follow": 40 },
+  "criticalKeywords": ["zero-day", "0-day", "actively exploited", "exploited in the wild", "exploitation active", "exploitée", "remote code execution", "ransomware"],
+  "importantKeywords": ["vulnerability", "vulnérabilité", "security update", "patch", "correctif", "cve-", "breaking change", "end of life", "deprecat"]
+}
