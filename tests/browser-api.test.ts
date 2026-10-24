@@ -21,6 +21,12 @@ describe("API navigateur (version GitHub Pages)", () => {
     expect((await call("/api/articles?limit=2&offset=1")).items).toHaveLength(2);
     expect((await call("/api/articles")).items[0].title).toBe("Article 3"); // plus récent d'abord
   });
+  it("filtre par langue d'origine", async () => {
+    const { call } = await boot(data([art(1, { lang: "fr" }), art(2, { lang: "en" }), art(3, { lang: "en" })]));
+    expect((await call("/api/articles?lang=en")).items).toHaveLength(2);
+    expect((await call("/api/articles?lang=fr")).items.map((a: any) => a.lang)).toEqual(["fr"]);
+    expect((await call("/api/articles")).items).toHaveLength(3);
+  });
   it("garde lu / favori dans le navigateur et filtre les non lus", async () => {
     const d = data([art(1), art(2)]), { call, mem } = await boot(d);
     await call("/api/articles/0a1/state", post({ is_read: true }));

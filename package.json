@@ -3,13 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "build:site": "tsx scripts/build-site.ts",
     "verify-sources": "tsx scripts/verify.ts",
     "lint": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": { "fast-xml-parser": "^5.0.0", "tsx": "^4.19.0" },
-  "devDependencies": { "@types/node": "^22.0.0", "typescript": "^5.6.0", "vitest": "^3.0.0" }
+  "dependencies": {
+    "fast-xml-parser": "^5.0.0",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
 }

@@ -418,5 +418,17 @@
   "reliability": 3,
   "official": false,
   "security": false
+ },
+ {
+  "name": "Jeuxvideo.com",
+  "feed_url": "https://www.jeuxvideo.com/rss/rss.xml",
+  "site_url": "https://www.jeuxvideo.com",
+  "lang": "fr",
+  "categories": [
+   "gaming"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
  }
 ]

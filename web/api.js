@@ -35,7 +35,7 @@ export async function api(path, opts = {}) {
   if (u.pathname === "/api/prefs" && method === "PUT") { store.cats = (body?.categories ?? []).filter((c) => typeof c === "string"); save(); return ok({ ok: true }); }
   if (u.pathname === "/api/articles") {
     const tokens = norm(p.get("q") ?? "").split(" ").filter(Boolean).slice(0, 5);
-    let items = data.articles.filter((a) => (!p.get("category") || a.category === p.get("category")) && (!p.get("level") || a.importance === p.get("level")) && (!p.get("unread") || !store.read[a.key]) && (!p.get("favorites") || store.fav[a.key]) && tokens.every((t) => norms.get(a.key).includes(t)));
+    let items = data.articles.filter((a) => (!p.get("category") || a.category === p.get("category")) && (!p.get("level") || a.importance === p.get("level")) && (!p.get("lang") || a.lang === p.get("lang")) && (!p.get("unread") || !store.read[a.key]) && (!p.get("favorites") || store.fav[a.key]) && tokens.every((t) => norms.get(a.key).includes(t)));
     if (p.get("sort") === "score") { const b = data.config?.prefBonus ?? 10, sc = (a) => a.score + (store.cats.includes(a.category) ? b : 0); items = items.sort((x, y) => sc(y) - sc(x) || ts(y) - ts(x)); }
     else items = items.sort((x, y) => ts(y) - ts(x));
     const limit = Math.min(Math.max(parseInt(p.get("limit")) || 30, 1), 100), offset = Math.max(parseInt(p.get("offset")) || 0, 0);

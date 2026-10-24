@@ -23,6 +23,24 @@ Il faut un compte GitHub (gratuit) et un dépôt **public** : GitHub Pages et Gi
 
 Ensuite tout est automatique : le site se met à jour toutes les 3 h (GitHub peut retarder de quelques minutes) et à chaque `git push` sur `main`.
 
+## Français / English et traduction
+- **Langue par défaut** : celle du navigateur ou du téléphone (français si c'est du français, anglais sinon). Le bouton **FR/EN** (en-tête sur ordinateur, menu *Plus → Langue et traduction* sur mobile) permet de changer ; le choix est gardé dans le navigateur.
+- **Articles affichés** : tous, français seulement ou anglais seulement.
+- **Traduction** : un article d'une autre langue que la vôtre a un bouton **Traduire** (FR→EN si vous lisez en anglais, EN→FR si vous lisez en français) et un bouton « Voir l'original ». L'option « Traduire automatiquement » le fait pour toute la liste. Le lien **Lire la source** ouvre toujours la page d'origine ; les noms de sources ne sont jamais traduits.
+- **Comment, sans serveur ni clé, gratuitement** : tout se passe dans le navigateur du visiteur.
+  1. S'il existe, le **traducteur intégré du navigateur** (Chrome/Edge sur ordinateur, en HTTPS, ce qui est le cas sur GitHub Pages) travaille sur l'appareil.
+  2. Sinon, un **petit modèle de traduction** (Marian « opus-mt », via transformers.js) est téléchargé **une seule fois**, après accord de l'utilisateur (≈ 110 Mo, à éviter en 4G) puis gardé en cache par le navigateur.
+  Les traductions déjà faites sont mémorisées (600 maximum) dans le navigateur.
+- **Vie privée** : aucun texte n'est envoyé à un service de traduction. En revanche, si le modèle de secours est utilisé, le navigateur télécharge le code depuis **jsDelivr** et le modèle depuis **Hugging Face** (ces deux services voient l'adresse IP du visiteur) ; l'utilisateur en est prévenu avant. Le site lui-même n'utilise aucun service tiers tant que la traduction n'est pas activée.
+- **Honnêteté sur la qualité** : traduction automatique, donc approximative ; elle ne s'applique qu'aux titres (et aux résumés si vous les activez). Les textes de l'interface sont écrits à la main en français et en anglais.
+
+## Installer comme une application
+Le site est une **PWA** : on peut l'ajouter à l'écran d'accueil ou au bureau, il s'ouvre alors en plein écran avec son icône, sans barre d'adresse. Il faut le HTTPS, ce qui est le cas sur GitHub Pages.
+- **Android (Chrome)** et **ordinateur (Chrome, Edge)** : bouton **Installer l'application** dans *Plus* (ou dans *Langue et traduction*) ; sinon via le menu du navigateur, ou l'icône d'installation dans la barre d'adresse.
+- **iPhone / iPad (Safari)** : bouton Partager, puis « Sur l'écran d'accueil » (l'appli l'explique elle-même).
+- **Hors ligne** : la dernière version de la page et les dernières données chargées restent consultables ; la mise à jour des articles demande une connexion. Le service worker ne touche pas aux téléchargements du modèle de traduction (gérés par le navigateur).
+- Les fichiers concernés : `web/manifest.webmanifest`, `web/sw.js`, `web/icons/`. Pour changer l'icône, remplacez les PNG (192, 512, maskable 512, et 180 pour iOS). Après une modification du code, le service worker prend la dernière version dès que vous êtes en ligne ; en cas de souci d'affichage, rechargez une fois.
+
 ## Comment ça marche
 - `scripts/build-site.ts` reprend l'état précédent (branche `data`, un seul commit écrasé à chaque fois), lit les flux, dédoublonne (même URL ou titre très proche), classe, garde **7 jours**, puis génère `site/` (page + `data/articles.json`).
 - Si **aucune** source ne répond (panne réseau), la mise à jour est annulée : le site déjà publié reste intact.
@@ -52,6 +70,6 @@ Le dépôt ne contient ni clé, ni jeton, ni mot de passe. Le workflow utilise l
 - **Les versions des actions GitHub** (`checkout`, `setup-node`, `upload-pages-artifact`, `deploy-pages`) peuvent évoluer ; si GitHub signale une version obsolète, remplacez le numéro dans `.github/workflows/update.yml`.
 
 ## État réel
-**Testé** (38 tests, `tsc` strict) : collecte, doublons, restauration de l'état entre deux exécutions, fichier public sans résumé, API navigateur (recherche, filtres, favoris, archivage, briefing) ; génération complète du site avec flux simulés, deux exécutions de suite.
-**Non testé** : le workflow sur GitHub même (Actions, Pages, branche `data`), les flux RSS réels (URL non vérifiées : lancez `npm run verify-sources`), l'affichage sur un vrai téléphone.
-**Non implémenté** : notifications, mode hors ligne (PWA), export Markdown/JSON d'un article.
+**Testé** (72 tests, `tsc` strict) : collecte, doublons, restauration de l'état entre deux exécutions, fichier public sans résumé, API navigateur (recherche, filtres, langue, favoris, archivage, briefing), manifeste, icônes (dimensions réelles) et service worker (réseau d'abord, hors ligne, anciens caches supprimés), bouton d'installation, textes FR/EN (mêmes clés et variables dans les deux langues), logique de traduction (choix du moteur, accord avant téléchargement, file d'attente, cache), et l'interface complète simulée dans un navigateur de test (changement de langue, boutons Traduire FR→EN et EN→FR, traduction automatique, erreurs) ; génération complète du site avec flux simulés.
+**Non testé** : le workflow sur GitHub même (Actions, Pages, branche `data`) ; les flux RSS réels (URL non vérifiées : lancez `npm run verify-sources`) ; l'affichage sur un vrai téléphone ; **l'installation réelle** (Android, iPhone, ordinateur : je n'ai pas pu cliquer sur « Installer » dans un vrai navigateur) ; **la traduction réelle** : le traducteur intégré de Chrome et le téléchargement du modèle (`Xenova/opus-mt-fr-en` existe ; `opus-mt-en-fr` est attendu sur le même modèle mais n'a pas été vérifié). Les tests utilisent de faux moteurs. Essayez les deux sens sur le site publié avant de le partager.
+**Non implémenté** : notifications, mode hors ligne complet des traductions et du modèle, notifications push, export Markdown/JSON d'un article, autres langues que le français et l'anglais.

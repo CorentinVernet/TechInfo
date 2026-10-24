@@ -74,3 +74,12 @@ dialog input[type=checkbox]{width:22px;height:22px}
 
 #foot{max-width:1100px;margin:0 auto;padding:0 14px calc(84px + env(safe-area-inset-bottom));color:var(--mute);font-size:.8rem}
 @media (min-width:900px){#foot{padding-bottom:24px}}
+
+#langBtn{display:none;height:44px;min-width:48px;border:1px solid var(--rule);border-radius:10px;background:var(--bg);cursor:pointer;font-weight:700}
+.btn:disabled{opacity:.6;cursor:progress}
+.tr-badge{color:var(--fol);font-weight:700}
+dialog select{width:100%;height:44px;border:1px solid var(--rule);border-radius:10px;background:var(--bg);padding:0 10px;font-size:16px;margin-bottom:8px}
+dialog fieldset{border:0;padding:0;margin:0 0 12px}
+dialog legend{font-weight:700;margin-bottom:4px}
+dialog .hint{font-size:.88rem;color:var(--mute);margin:8px 0}
+@media (min-width:900px){#langBtn{display:inline-block}}
