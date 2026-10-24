@@ -25,6 +25,16 @@ describe("fichier public", () => {
     expect(json).not.toContain("seconde phrase");
   });
 });
+describe("résumés publiés", () => {
+  it("n'expose pas le faux résumé « informations limitées » (titre seul)", async () => {
+    const db = memDb(), nodesc = xml.replace(/<description>.*<\/description>/, "");
+    const { statements } = await collectSources([src], { ...deps(), fetchText: async () => nodesc });
+    db.exec(statements.join("\n"));
+    const a = exportState(db, now, { includeSummary: true, summaryMaxChars: 280 }).articles[0];
+    expect(a.summary_limited).toBe(1);
+    expect(a.summary).toBe("");
+  });
+});
 describe("état entre deux exécutions", () => {
   it("restaure l'historique et ne recrée pas les articles déjà vus", async () => {
     const st = exportState(await seeded(), now, { includeSummary: false, summaryMaxChars: 200 });

@@ -24,6 +24,8 @@ async function load() {
 // L'identifiant exposé à l'interface est la clé stable de l'article (survit à une reconstruction des données).
 const view = (a) => ({ ...a, id: a.key, source_name: srcName.get(a.source_id) ?? "?", source_count: (srcsOf.get(a.id) ?? []).length, is_read: store.read[a.key] ? 1 : 0, favorite: store.fav[a.key] ? 1 : 0 });
 const ts = (a) => Date.parse(a.sort_ts);
+const LV = { critical: 3, important: 2, follow: 1, minor: 0 };
+const safe = (v, d) => { try { return typeof v === "string" ? JSON.parse(v) : (v ?? d); } catch { return d; } };
 const ok = (v) => ({ ok: true, status: 200, json: async () => v });
 const fail = (status) => { throw new Error(`Erreur ${status}`); };
 
@@ -33,9 +35,12 @@ export async function api(path, opts = {}) {
   const body = opts.body ? JSON.parse(opts.body) : null, parts = u.pathname.split("/").filter(Boolean);
   if (u.pathname === "/api/me") return ok({ email: "visiteur", role: "user", categories: store.cats, static: true, updated_at: data.generated_at, status: data.status });
   if (u.pathname === "/api/prefs" && method === "PUT") { store.cats = (body?.categories ?? []).filter((c) => typeof c === "string"); save(); return ok({ ok: true }); }
+  if (u.pathname === "/api/sources") return ok({ items: data.sources.filter((s) => s.enabled !== 0).map((s) => ({ id: s.id, name: s.name, lang: s.lang, categories: safe(s.categories, []) })).sort((x, y) => x.name.localeCompare(y.name)) });
+  if (u.pathname === "/api/data" && method === "DELETE") { store.read = {}; store.fav = {}; store.opened = []; save(); return ok({ ok: true }); }
   if (u.pathname === "/api/articles") {
     const tokens = norm(p.get("q") ?? "").split(" ").filter(Boolean).slice(0, 5);
-    let items = data.articles.filter((a) => (!p.get("category") || a.category === p.get("category")) && (!p.get("level") || a.importance === p.get("level")) && (!p.get("lang") || a.lang === p.get("lang")) && (!p.get("unread") || !store.read[a.key]) && (!p.get("favorites") || store.fav[a.key]) && tokens.every((t) => norms.get(a.key).includes(t)));
+    const cats = (p.get("cats") ?? "").split(",").filter(Boolean), mute = new Set(safe(p.get("mute"), [])), minLevel = LV[p.get("minlevel")] ?? 0;
+    let items = data.articles.filter((a) => (!p.get("category") || a.category === p.get("category")) && (!cats.length || cats.includes(a.category)) && LV[a.importance] >= minLevel && !mute.has(srcName.get(a.source_id)) && (!p.get("level") || a.importance === p.get("level")) && (!p.get("lang") || a.lang === p.get("lang")) && (!p.get("unread") || !store.read[a.key]) && (!p.get("favorites") || store.fav[a.key]) && tokens.every((t) => norms.get(a.key).includes(t)));
     if (p.get("sort") === "score") { const b = data.config?.prefBonus ?? 10, sc = (a) => a.score + (store.cats.includes(a.category) ? b : 0); items = items.sort((x, y) => sc(y) - sc(x) || ts(y) - ts(x)); }
     else items = items.sort((x, y) => ts(y) - ts(x));
     const limit = Math.min(Math.max(parseInt(p.get("limit")) || 30, 1), 100), offset = Math.max(parseInt(p.get("offset")) || 0, 0);

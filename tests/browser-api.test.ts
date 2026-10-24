@@ -27,6 +27,25 @@ describe("API navigateur (version GitHub Pages)", () => {
     expect((await call("/api/articles?lang=fr")).items.map((a: any) => a.lang)).toEqual(["fr"]);
     expect((await call("/api/articles")).items).toHaveLength(3);
   });
+  it("filtre par catégories suivies, importance minimale et sources masquées ; liste les sources", async () => {
+    const d = data([art(1, { category: "dev", importance: "critical" }), art(2, { category: "ai", importance: "minor" }), art(3, { category: "web", importance: "important", source_id: 2 })]);
+    d.sources.push({ id: 2, name: "Autre", lang: "en", categories: "[\"web\"]", enabled: 1 } as any);
+    const { call } = await boot(d);
+    expect((await call("/api/articles?cats=dev,ai")).items).toHaveLength(2);
+    expect((await call("/api/articles?minlevel=important")).items.map((a: any) => a.importance).sort()).toEqual(["critical", "important"]);
+    expect((await call(`/api/articles?mute=${encodeURIComponent(JSON.stringify(["Autre"]))}`)).items).toHaveLength(2);
+    expect((await call("/api/articles?mute=pas-du-json")).items).toHaveLength(3);
+    expect((await call("/api/sources")).items.map((s: any) => s.name)).toEqual(["Autre", "Src"]);
+  });
+  it("efface favoris, lectures et historique à la demande", async () => {
+    const { call } = await boot(data([art(1)]));
+    await call("/api/articles/0a1/state", post({ favorite: true, is_read: true }));
+    await call("/api/articles/0a1");
+    await call("/api/data", { method: "DELETE" });
+    expect((await call("/api/articles?favorites=1")).items).toEqual([]);
+    expect((await call("/api/history")).items).toEqual([]);
+    expect((await call("/api/articles?unread=1")).items).toHaveLength(1);
+  });
   it("garde lu / favori dans le navigateur et filtre les non lus", async () => {
     const d = data([art(1), art(2)]), { call, mem } = await boot(d);
     await call("/api/articles/0a1/state", post({ is_read: true }));

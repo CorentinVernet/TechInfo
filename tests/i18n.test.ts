@@ -25,7 +25,7 @@ describe("textes", () => {
   it("remplace les variables et retombe sur l'anglais puis sur la clé", () => {
     expect(t("fr", "filtersN", { n: 2 })).toBe("Filtres (2)");
     expect(t("en", "filtersN", { n: 2 })).toBe("Filters (2)");
-    expect(t("de", "close")).toBe("Close");
+    expect(t("de", "more")).toBe("Show more");
     expect(t("fr", "inconnue")).toBe("inconnue");
   });
   it("traduit toutes les catégories", () => {

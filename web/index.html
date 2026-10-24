@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="auto" data-size="m" data-density="comfortable" data-summary="3">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#e9eef2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0e1923" media="(prefers-color-scheme: dark)">
-<meta name="description" content="Tech news aggregator · Agrégateur d'actualités tech : titres et liens vers les sources, classés par règles.">
+<meta name="description" content="Tech news aggregator · Agrégateur d'actualités tech : titres, résumés et liens vers les sources, classés par règles.">
 <title>TechInfo</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2311202e'/%3E%3Cpath d='M8 10h16M16 10v13' stroke='%236cc4e0' stroke-width='3.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="manifest" href="./manifest.webmanifest">
@@ -19,33 +19,22 @@
 <header id="top">
   <div class="bar">
     <h1>TechInfo</h1>
+    <nav id="tabbar" data-i18n-aria="tabsAria"></nav>
     <input id="q" type="search" data-i18n-ph="search" data-i18n-aria="searchAria" enterkeyhint="search">
     <button id="filterBtn" type="button" aria-expanded="false" aria-controls="filters"></button>
-    <button id="langBtn" type="button" data-i18n-aria="langAria"></button>
   </div>
-  <div id="filters">
-    <select id="level" data-i18n-aria="allLevels">
-      <option value="" data-i18n="allLevels"></option>
-      <option value="critical" data-i18n="lvl_critical"></option><option value="important" data-i18n="lvl_important"></option>
-      <option value="follow" data-i18n="lvl_follow"></option><option value="minor" data-i18n="lvl_minor"></option>
-    </select>
-    <label><input id="unread" type="checkbox"> <span data-i18n="unread"></span></label>
-    <label><input id="byscore" type="checkbox"> <span data-i18n="byScore"></span></label>
-  </div>
-  <div id="chips" data-i18n-aria="chipsAria"></div>
+  <div id="filters"></div>
+  <div id="chips" data-i18n-aria="chipsAria" hidden></div>
 </header>
-<div class="layout">
-  <nav id="nav" data-i18n-aria="navAria"></nav>
-  <main>
-    <p id="status" role="status"></p>
-    <section id="list" tabindex="-1"></section>
-    <button id="more" type="button" hidden data-i18n="more"></button>
-  </main>
-</div>
+<main>
+  <div id="subtabs" data-i18n-aria="subtabsAria" hidden></div>
+  <div id="banner" hidden></div>
+  <p id="status" role="status"></p>
+  <section id="list" tabindex="-1"></section>
+  <button id="more" type="button" hidden data-i18n="more"></button>
+</main>
 <footer id="foot"></footer>
-<nav id="tabbar" data-i18n-aria="tabsAria"></nav>
-<dialog id="menu"></dialog>
-<dialog id="settings"></dialog>
+<div id="toast" role="status" hidden></div>
 <script src="./app.js" type="module"></script>
 </body>
 </html>
