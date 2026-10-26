@@ -33,6 +33,28 @@ describe("manifeste et icônes", () => {
   });
 });
 
+describe("logo et icônes du site", () => {
+  const html = readFileSync("web/index.html", "utf8");
+  it("le logo sert de favicon (ico + PNG 16/32), d'icône iOS, d'icône d'application et d'image d'en-tête", () => {
+    expect(html).toContain('rel="icon" href="./favicon.ico"');
+    expect(png("icons/favicon-32.png")).toMatchObject({ w: 32, h: 32 });
+    expect(png("icons/favicon-16.png")).toMatchObject({ w: 16, h: 16 });
+    const ico = readFileSync("web/favicon.ico"); expect([ico.readUInt16LE(0), ico.readUInt16LE(2)]).toEqual([0, ico.readUInt16LE(2)]); expect(ico.readUInt16LE(2)).toBe(1);
+    expect(ico.readUInt16LE(4)).toBeGreaterThanOrEqual(3);          // plusieurs tailles dans le .ico
+    expect(html).toMatch(/<img class="logo" src="\.\/icons\/icon-192\.png"/);
+    expect(html).not.toContain("data:image/svg+xml");              // plus de vieille icône « T » dessinée à la main
+  });
+  it("toutes les icônes référencées par la page existent", () => {
+    for (const m of html.matchAll(/(?:href|src)="(\.\/[^"]+\.(?:png|ico))"/g)) expect(existsSync(`web/${m[1].slice(2)}`), m[1]).toBe(true);
+  });
+  it("les icônes pleines (maskable, iOS) n'ont pas de transparence ; l'icône normale a des coins arrondis transparents", () => {
+    const color = (f: string) => readFileSync(`web/${f}`)[25];     // type de couleur PNG : 2 = RVB, 6 = RVBA
+    expect(color("icons/icon-maskable-512.png")).toBe(2);
+    expect(color("icons/apple-touch-icon.png")).toBe(2);
+    expect(color("icons/icon-512.png")).toBe(6);
+  });
+});
+
 describe("service worker", () => {
   function boot(fetchImpl: any) {
     const store = new Map<string, any>(), handlers: Record<string, Function> = {};

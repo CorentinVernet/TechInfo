@@ -1,7 +1,7 @@
 // Service worker minimal : permet l'installation et un affichage hors ligne des dernières données connues.
 // Stratégie « réseau d'abord » : en ligne on a toujours la dernière version ; hors ligne, la dernière copie gardée.
 const CACHE = "techinfo-v1";
-const SHELL = ["./", "./index.html", "./style.css", "./app.js", "./api.js", "./i18n.js", "./translate.js", "./translate-worker.js", "./constants.js", "./manifest.webmanifest", "./icons/icon-192.png"];
+const SHELL = ["./", "./index.html", "./style.css", "./app.js", "./api.js", "./i18n.js", "./translate.js", "./translate-worker.js", "./constants.js", "./manifest.webmanifest", "./icons/icon-192.png", "./favicon.ico"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

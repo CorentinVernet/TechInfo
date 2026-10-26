@@ -5,22 +5,31 @@ try { Object.assign(store, JSON.parse(localStorage.getItem(KEY) || "{}")); } cat
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* ignoré */ } };
 export const norm = (s) => String(s).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 
-let data, byKey, byNum, srcName, norms, srcsOf;
-async function load() {
-  if (data) return;
-  const r = await fetch("data/articles.json", { cache: "no-cache" });
-  if (!r.ok) throw new Error("Données indisponibles");
-  data = await r.json();
-  srcName = new Map(data.sources.map((s) => [s.id, s.name]));
-  byKey = new Map(data.articles.map((a) => [a.key, a]));
-  byNum = new Map(data.articles.map((a) => [a.id, a]));
-  norms = new Map(data.articles.map((a) => [a.key, norm(`${a.title} ${srcName.get(a.source_id) ?? ""}`)]));
+let data, byKey, byNum, srcName, norms, srcsOf, pending = null;
+const fetchData = async () => { const r = await fetch("data/articles.json", { cache: "no-cache" }); if (!r.ok) throw new Error("Données indisponibles"); return r.json(); };
+function index(d) {
+  data = d;
+  srcName = new Map(d.sources.map((s) => [s.id, s.name]));
+  byKey = new Map(d.articles.map((a) => [a.key, a]));
+  byNum = new Map(d.articles.map((a) => [a.id, a]));
+  norms = new Map(d.articles.map((a) => [a.key, norm(`${a.title} ${srcName.get(a.source_id) ?? ""}`)]));
   srcsOf = new Map();
-  for (const x of data.article_sources) {
+  for (const x of d.article_sources) {
     if (!srcsOf.has(x.article_id)) srcsOf.set(x.article_id, []);
     srcsOf.get(x.article_id).push({ name: srcName.get(x.source_id) ?? "?", url: x.url, published_at: x.published_at });
   }
 }
+async function load() { if (!data) index(await fetchData()); }
+/** Regarde si le site a été mis à jour depuis le chargement ; renvoie les articles nouveaux (sans les appliquer). */
+export async function peekUpdates() {
+  await load();
+  const fresh = await fetchData();
+  if (!fresh.generated_at || fresh.generated_at <= data.generated_at) return { items: [] };
+  pending = fresh;
+  const names = new Map(fresh.sources.map((s) => [s.id, s.name]));
+  return { items: fresh.articles.filter((a) => !byKey.has(a.key)).map((a) => ({ ...a, id: a.key, source_name: names.get(a.source_id) ?? "?" })) };
+}
+export function applyUpdates() { if (!pending) return false; index(pending); pending = null; return true; }
 // L'identifiant exposé à l'interface est la clé stable de l'article (survit à une reconstruction des données).
 const view = (a) => ({ ...a, id: a.key, source_name: srcName.get(a.source_id) ?? "?", source_count: (srcsOf.get(a.id) ?? []).length, is_read: store.read[a.key] ? 1 : 0, favorite: store.fav[a.key] ? 1 : 0 });
 const ts = (a) => Date.parse(a.sort_ts);
