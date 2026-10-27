@@ -1,5 +1,7 @@
 import { isSafeFeedUrl } from "../src/core/url";
 export interface FetchOpts { timeoutMs?: number; maxBytes?: number; retries?: number; fetchImpl?: typeof fetch; sleep?: (ms: number) => Promise<void> }
+// Identifie le robot et indique où trouver son propriétaire (usage courant et poli pour les lecteurs de flux).
+const UA = `Mozilla/5.0 (compatible; TechInfoBot/1.0; +https://github.com/${process.env.GITHUB_REPOSITORY ?? "techinfo"})`;
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 /** Timeout, taille max, redirections validées une à une (anti-SSRF), nouvelles tentatives sur 429/5xx/réseau. */
 export async function fetchText(url: string, o: FetchOpts = {}): Promise<string> {
@@ -10,7 +12,7 @@ export async function fetchText(url: string, o: FetchOpts = {}): Promise<string>
       let cur = url;
       for (let hop = 0; hop < 4; hop++) {
         if (!isSafeFeedUrl(cur)) throw new Error("URL refusée (non https ou hôte privé)");
-        const res = await fetchImpl(cur, { redirect: "manual", signal: AbortSignal.timeout(timeoutMs), headers: { "user-agent": "TechInfoBot/1.0 (veille perso)", accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" } });
+        const res = await fetchImpl(cur, { redirect: "manual", signal: AbortSignal.timeout(timeoutMs), headers: { "user-agent": UA, accept: "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5", "accept-language": "en,fr;q=0.8" } });
         if (res.status >= 300 && res.status < 400 && res.headers.get("location")) { cur = new URL(res.headers.get("location")!, cur).href; continue; }
         if (res.status === 429 || res.status >= 500) {
           const ra = Number(res.headers.get("retry-after"));

@@ -1,1 +1,8 @@
-{ "similarity": 0.75, "windowHours": 48, "minTokens": 4, "retentionDays": 7 }
+{
+ "similarity": 0.75,
+ "windowHours": 48,
+ "minTokens": 4,
+ "retentionDays": 7,
+ "keepPerCategory": 8,
+ "maxAgeDays": 45
+}

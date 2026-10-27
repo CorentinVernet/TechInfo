@@ -491,3 +491,34 @@ describe("premier lancement guidé", () => {
     expect(dlg().hasAttribute("open")).toBe(true);
   });
 });
+
+describe("état des sources et catégories vides", () => {
+  const withStatus = () => dataWith([mk(1, "fr")], { sources: [
+    { id: 1, name: "Source FR", lang: "fr", categories: '["dev"]', enabled: 1, last_success_at: new Date().toISOString(), last_error: null },
+    { id: 2, name: "Source Web", lang: "en", categories: '["web"]', enabled: 1, last_success_at: null, last_error: "HTTP 403" },
+    { id: 3, name: "Autre Web", lang: "en", categories: '["web"]', enabled: 1, last_success_at: new Date().toISOString(), last_error: null }] });
+  it("les réglages montrent pour chaque source la dernière lecture, l'erreur et le nombre d'articles", async () => {
+    world.data = withStatus();
+    await boot();
+    tab("settings"); await vi.waitFor(() => expect($("#list .set")).toBeTruthy());
+    const rows = [...document.querySelectorAll("#list .srcname")].map((r) => r.textContent);
+    expect(rows.find((r) => r!.includes("Source Web"))).toContain("⚠ HTTP 403");
+    expect(rows.find((r) => r!.includes("Source FR"))).toMatch(/dernière lecture .* 1 article/);
+    expect($("#list").textContent).toContain("1 source(s) sur 3 ne répondent pas");
+  });
+  it("une catégorie vide explique pourquoi : sources concernées et pannes", async () => {
+    world.data = withStatus();
+    await boot();
+    click($("#chips [data-cat=web]"));
+    await vi.waitFor(() => expect($("#banner").hidden).toBe(false));
+    expect($("#banner").textContent).toContain("Rien de récent dans « Web »");
+    expect($("#banner").textContent).toContain("Source Web ⚠ HTTP 403");
+    expect($("#banner").textContent).toContain("Autre Web ✓");
+  });
+  it("une catégorie sans aucune source le dit aussi, en anglais", async () => {
+    world.data = withStatus();
+    await boot({ lang: "en" });
+    click($("#chips [data-cat=space]"));
+    await vi.waitFor(() => expect($("#banner").textContent).toContain("No source feeds “Space” yet."));
+  });
+});

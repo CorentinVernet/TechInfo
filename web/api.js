@@ -5,7 +5,7 @@ try { Object.assign(store, JSON.parse(localStorage.getItem(KEY) || "{}")); } cat
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* ignoré */ } };
 export const norm = (s) => String(s).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 
-let data, byKey, byNum, srcName, norms, srcsOf, pending = null;
+let data, byKey, byNum, srcName, norms, srcsOf, perSource, pending = null;
 const fetchData = async () => { const r = await fetch("data/articles.json", { cache: "no-cache" }); if (!r.ok) throw new Error("Données indisponibles"); return r.json(); };
 function index(d) {
   data = d;
@@ -13,6 +13,8 @@ function index(d) {
   byKey = new Map(d.articles.map((a) => [a.key, a]));
   byNum = new Map(d.articles.map((a) => [a.id, a]));
   norms = new Map(d.articles.map((a) => [a.key, norm(`${a.title} ${srcName.get(a.source_id) ?? ""}`)]));
+  perSource = new Map();
+  for (const a of d.articles) perSource.set(a.source_id, (perSource.get(a.source_id) ?? 0) + 1);
   srcsOf = new Map();
   for (const x of d.article_sources) {
     if (!srcsOf.has(x.article_id)) srcsOf.set(x.article_id, []);
@@ -44,7 +46,7 @@ export async function api(path, opts = {}) {
   const body = opts.body ? JSON.parse(opts.body) : null, parts = u.pathname.split("/").filter(Boolean);
   if (u.pathname === "/api/me") return ok({ email: "visiteur", role: "user", categories: store.cats, static: true, updated_at: data.generated_at, status: data.status });
   if (u.pathname === "/api/prefs" && method === "PUT") { store.cats = (body?.categories ?? []).filter((c) => typeof c === "string"); save(); return ok({ ok: true }); }
-  if (u.pathname === "/api/sources") return ok({ items: data.sources.filter((s) => s.enabled !== 0).map((s) => ({ id: s.id, name: s.name, lang: s.lang, categories: safe(s.categories, []) })).sort((x, y) => x.name.localeCompare(y.name)) });
+  if (u.pathname === "/api/sources") return ok({ items: data.sources.filter((s) => s.enabled !== 0).map((s) => ({ id: s.id, name: s.name, lang: s.lang, categories: safe(s.categories, []), last_success_at: s.last_success_at ?? null, last_error: s.last_error ?? null, count: perSource.get(s.id) ?? 0 })).sort((x, y) => x.name.localeCompare(y.name)) });
   if (u.pathname === "/api/data" && method === "DELETE") { store.read = {}; store.fav = {}; store.opened = []; save(); return ok({ ok: true }); }
   if (u.pathname === "/api/articles") {
     const tokens = norm(p.get("q") ?? "").split(" ").filter(Boolean).slice(0, 5);

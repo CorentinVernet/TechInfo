@@ -36,6 +36,9 @@ describe("API navigateur (version GitHub Pages)", () => {
     expect((await call(`/api/articles?mute=${encodeURIComponent(JSON.stringify(["Autre"]))}`)).items).toHaveLength(2);
     expect((await call("/api/articles?mute=pas-du-json")).items).toHaveLength(3);
     expect((await call("/api/sources")).items.map((s: any) => s.name)).toEqual(["Autre", "Src"]);
+    const st = (await call("/api/sources")).items; // état de chaque source : dernière lecture, erreur éventuelle, nombre d'articles
+    expect(st.find((s: any) => s.name === "Src")).toMatchObject({ count: 2, last_error: null });
+    expect(st.find((s: any) => s.name === "Autre")).toMatchObject({ count: 1 });
   });
   it("efface favoris, lectures et historique à la demande", async () => {
     const { call } = await boot(data([art(1)]));

@@ -430,5 +430,233 @@
   "reliability": 3,
   "official": false,
   "security": false
+ },
+ {
+  "name": "web.dev",
+  "feed_url": "https://web.dev/feed.xml",
+  "site_url": "https://web.dev",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Chrome for Developers",
+  "feed_url": "https://developer.chrome.com/static/blog/feed.xml",
+  "site_url": "https://developer.chrome.com/blog",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "MDN Blog",
+  "feed_url": "https://developer.mozilla.org/en-US/blog/rss.xml",
+  "site_url": "https://developer.mozilla.org/en-US/blog/",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "WebKit Blog",
+  "feed_url": "https://webkit.org/feed/",
+  "site_url": "https://webkit.org/blog/",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Smashing Magazine",
+  "feed_url": "https://www.smashingmagazine.com/feed/",
+  "site_url": "https://www.smashingmagazine.com",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "CSS-Tricks",
+  "feed_url": "https://css-tricks.com/feed/",
+  "site_url": "https://css-tricks.com",
+  "lang": "en",
+  "categories": [
+   "web"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Hacker News",
+  "feed_url": "https://news.ycombinator.com/rss",
+  "site_url": "https://news.ycombinator.com",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Lobsters",
+  "feed_url": "https://lobste.rs/rss",
+  "site_url": "https://lobste.rs",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "DEV Community",
+  "feed_url": "https://dev.to/feed",
+  "site_url": "https://dev.to",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 3,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Stack Overflow Blog",
+  "feed_url": "https://stackoverflow.blog/feed/",
+  "site_url": "https://stackoverflow.blog",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "InfoQ",
+  "feed_url": "https://feed.infoq.com/",
+  "site_url": "https://www.infoq.com",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Rust Blog",
+  "feed_url": "https://blog.rust-lang.org/feed.xml",
+  "site_url": "https://blog.rust-lang.org",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Go Blog",
+  "feed_url": "https://go.dev/blog/feed.atom",
+  "site_url": "https://go.dev/blog/",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "TypeScript Blog",
+  "feed_url": "https://devblogs.microsoft.com/typescript/feed/",
+  "site_url": "https://devblogs.microsoft.com/typescript/",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Python Insider",
+  "feed_url": "https://pythoninsider.blogspot.com/feeds/posts/default",
+  "site_url": "https://pythoninsider.blogspot.com",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 5,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "JetBrains Blog",
+  "feed_url": "https://blog.jetbrains.com/feed/",
+  "site_url": "https://blog.jetbrains.com",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 4,
+  "official": true,
+  "security": false
+ },
+ {
+  "name": "Martin Fowler",
+  "feed_url": "https://martinfowler.com/feed.atom",
+  "site_url": "https://martinfowler.com",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Julia Evans",
+  "feed_url": "https://jvns.ca/atom.xml",
+  "site_url": "https://jvns.ca",
+  "lang": "en",
+  "categories": [
+   "dev"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
+ },
+ {
+  "name": "Simon Willison",
+  "feed_url": "https://simonwillison.net/atom/everything/",
+  "site_url": "https://simonwillison.net",
+  "lang": "en",
+  "categories": [
+   "ai"
+  ],
+  "reliability": 4,
+  "official": false,
+  "security": false
  }
 ]

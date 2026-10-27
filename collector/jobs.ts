@@ -24,7 +24,7 @@ export async function collect(sql: Sql, now = new Date(), log: (m: string) => vo
     const sources: SourceRow[] = sql.query(`SELECT * FROM sources WHERE enabled=1`).map((r) => ({ ...r, categories: JSON.parse(r.categories), official: !!r.official, security: !!r.security }));
     const knownUrls = new Set<string>(sql.query(`SELECT url_norm FROM article_sources`).map((r) => r.url_norm));
     const known = sql.query(`SELECT key,title_norm,category,sort_ts FROM articles`).map((r) => ({ key: r.key, titleNorm: r.title_norm, category: r.category, ts: Date.parse(r.sort_ts) }));
-    const { statements, results } = await collectSources(sources, { fetchText, now, knownUrls, known, cfg: defaultConfig, dedupe, retentionDays: dedupe.retentionDays });
+    const { statements, results } = await collectSources(sources, { fetchText, now, knownUrls, known, cfg: defaultConfig, dedupe, retentionDays: dedupe.retentionDays, keepPerCategory: dedupe.keepPerCategory, maxAgeDays: dedupe.maxAgeDays });
     const ts = now.toISOString();
     for (const r of results) {
       const s = sources.find((x) => x.id === r.id)!;
@@ -55,7 +55,7 @@ export function briefing(sql: Sql, now = new Date(), force = false, log: (m: str
   sql.exec(`INSERT OR REPLACE INTO briefings(day,generated_at,summary,article_ids,topics) VALUES(${q(day)},${q(now.toISOString())},${q(b.summary)},${q(JSON.stringify(b.ids))},${q(JSON.stringify(b.topics))});`);
   log(`Briefing ${day} : ${b.ids.length} articles.`);
 }
-export function purge(sql: Sql, now = new Date()) { sql.exec(purgeSql(now, dedupeConfig().retentionDays)); }
+export function purge(sql: Sql, now = new Date()) { const c = dedupeConfig(); sql.exec(purgeSql(now, c.retentionDays, c.keepPerCategory, c.maxAgeDays)); }
 export async function verify(log: (m: string) => void = console.log) {
   let bad = 0;
   for (const s of json("config/sources.json")) {

@@ -54,7 +54,52 @@ describe("collecte", () => {
     expect(results[0].paused).toBe(true);
   });
 });
+describe("catégories peu actives : jamais vides", () => {
+  const day = 864e5, d = (n: number) => new Date(now.getTime() - n * day).toUTCString();
+  const feed = rss(item("Article récent de la semaine", "https://slow.example/r", d(1)) + item("Ancien article numéro un sur le sujet", "https://slow.example/o1", d(20)) + item("Ancien article numéro deux sur le sujet", "https://slow.example/o2", d(25)) + item("Très vieil article oublié depuis longtemps", "https://slow.example/o3", d(60)));
+  const slow = (extra: any = {}) => ({ ...deps({ "https://slow.example/feed": feed }), ...extra });
+  const row = { ...src(1, "slow"), feed_url: "https://slow.example/feed" };
+  it("sans règle de conservation : seuls les articles de moins de 7 jours entrent (comportement historique)", async () => {
+    const { results } = await collectSources([row], slow());
+    expect(results[0].added).toBe(1);
+  });
+  it("avec une règle de conservation : complète avec des articles plus anciens, jusqu'à N et jusqu'à l'âge maximal", async () => {
+    const { results } = await collectSources([row], slow({ keepPerCategory: 3, maxAgeDays: 45 }));
+    expect(results[0].added).toBe(3);        // récent + 2 anciens ; celui de 60 jours est hors limite
+    const two = await collectSources([row], slow({ keepPerCategory: 2, maxAgeDays: 45, knownUrls: new Set(), known: [] }));
+    expect(two.results[0].added).toBe(2);
+  });
+  it("ne ré-ajoute pas d'anciens articles si la catégorie a déjà assez d'articles", async () => {
+    const known = Array.from({ length: 5 }, (_, i) => ({ key: `k${i}`, titleNorm: `x${i}`, category: "dev", ts: now.getTime() }));
+    const { results } = await collectSources([row], slow({ keepPerCategory: 3, maxAgeDays: 45, known }));
+    expect(results[0].added).toBe(1);
+  });
+});
 describe("purge 7 jours", () => {
+  it("garde les N plus récents de chaque catégorie, même anciens, jusqu'à l'âge maximal", () => {
+    const db = memDb(), ago = (n: number) => new Date(now.getTime() - n * 864e5).toISOString();
+    const ins = (id: number, cat: string, age: number) => db.exec(`INSERT INTO articles(id,key,title,title_norm,url,source_id,category,lang,collected_at,sort_ts,summary,importance,score) VALUES (${id},'k${id}','T${id}','t${id}','https://x/${id}',1,'${cat}','en','${ago(age)}','${ago(age)}','s','minor',1)`);
+    [[1, "dev", 1], [2, "dev", 20], [3, "dev", 25], [4, "dev", 30], [5, "dev", 50], [6, "web", 30], [7, "web", 2], [8, "web", 3], [9, "web", 40]].forEach(([i, c, a]) => ins(i as number, c as string, a as number));
+    db.exec(purgeSql(now, 7, 2, 45));
+    expect((db.prepare("SELECT id FROM articles ORDER BY id").all() as any[]).map((r) => r.id)).toEqual([1, 2, 7, 8]);   // dev : 1 j + le plus récent des anciens ; web : 2 j et 3 j
+  });
+  it("sans règle (valeurs par défaut), comportement identique à avant", () => {
+    const db = memDb();
+    db.exec(`INSERT INTO articles(id,key,title,title_norm,url,source_id,category,lang,collected_at,sort_ts,summary,importance,score) VALUES (1,'a','T','t','u',1,'dev','en','2026-10-01T00:00:00Z','2026-10-01T00:00:00Z','s','minor',1),(2,'b','T','t','u2',1,'dev','en','2026-10-21T00:00:00Z','2026-10-21T00:00:00Z','s','minor',1)`);
+    db.exec(purgeSql(now, 7));
+    expect((db.prepare("SELECT id FROM articles").all() as any[]).map((r) => r.id)).toEqual([2]);
+  });
+  it("archive les favoris d'un article supprimé, mais pas ceux d'un article conservé", () => {
+    const db = memDb(), ago = (n: number) => new Date(now.getTime() - n * 864e5).toISOString();
+    db.exec("INSERT INTO users(id,email,created_at) VALUES (1,'u@x','2026-01-01')");
+    for (const [id, age] of [[1, 20], [2, 30], [3, 31]]) db.exec(`INSERT INTO articles(id,key,title,title_norm,url,source_id,category,lang,collected_at,sort_ts,summary,importance,score) VALUES (${id},'k${id}','T${id}','t${id}','https://x/${id}',1,'dev','en','${ago(age)}','${ago(age)}','s','minor',1)`);
+    db.exec("INSERT INTO user_article_state(user_id,article_id,favorite) VALUES (1,1,1),(1,3,1)");
+    db.exec(purgeSql(now, 7, 2, 45));
+    expect((db.prepare("SELECT title FROM bookmarks").all() as any[]).map((r) => r.title)).toEqual(["T3"]);
+    expect((db.prepare("SELECT id FROM articles ORDER BY id").all() as any[]).map((r) => r.id)).toEqual([1, 2]);
+  });
+});
+describe("purge 7 jours (historique)", () => {
   it("supprime l'ancien, garde le récent et archive les favoris", () => {
     const db = memDb();
     db.exec("INSERT INTO users(id,email,created_at) VALUES (1,'u@x','2026-01-01')");

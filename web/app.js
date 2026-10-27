@@ -289,8 +289,18 @@ async function load(reset = true) {
     addCards(list, items, fav ? settings.groupDays : settings.groupDays && settings.sort === "date"); state.offset = (reset ? 0 : state.offset) + items.length;
     state.more = !fav && items.length >= limit; updateMore();
     say(list.querySelector("article") ? "" : t(fav ? "noSaved" : "noResults")); restoreY();
+    if (!list.querySelector("article") && state.cat && !fav) explainEmpty(state.cat, live);
   } catch (e) { if (live()) say(e.message, true); }
   finally { if (live()) { state.loading = false; list.setAttribute("aria-busy", "false"); dropSkeletons(); } }
+}
+
+/** Catégorie vide : on dit pourquoi (quelles sources l'alimentent, et lesquelles sont en panne). */
+async function explainEmpty(cat, live) {
+  try {
+    const { items } = await call("/api/sources"); if (!live()) return;
+    const mine = items.filter((x) => x.categories.includes(cat)), name = catLabel(settings.lang, cat);
+    setBanner(hint(mine.length ? t("catHealth", { cat: name, list: mine.map((x) => `${x.name} ${x.last_error ? `⚠ ${x.last_error}` : "✓"}`).join(" · ") }) : t("catNoSource", { cat: name })));
+  } catch { /* ignoré */ }
 }
 
 // ---------- adresse partageable et retour qui garde la place ----------
@@ -387,7 +397,9 @@ async function renderSettings(seq) {
     save();
   });
   service.engineInfo(...dirFor()).then((i) => { engine.textContent = i.kind === "chrome" ? t("engineChrome") : i.kind === "model" ? t("engineModel", { mb: MODEL_MB }) : t("engineNone"); });
-  const muteBoxes = srcs.map((s) => check(!settings.muted.includes(s.name), el("span", {}, s.name), (on) => { settings.muted = on ? settings.muted.filter((n) => n !== s.name) : [...new Set([...settings.muted, s.name])]; save(); renderChrome(); }));
+  const note = (x) => `${x.last_error ? t("srcErr", { err: x.last_error }) : x.last_success_at ? t("srcOk", { when: ago({ published_at: x.last_success_at }) }) : t("srcNever")} · ${t("srcCount", { n: x.count })}`;
+  const bad = srcs.filter((x) => x.last_error).length;
+  const muteBoxes = srcs.map((x) => check(!settings.muted.includes(x.name), el("span", { class: "srcname" }, x.name, el("small", { class: `srcnote${x.last_error ? " bad" : ""}` }, note(x))), (on) => { settings.muted = on ? settings.muted.filter((n) => n !== x.name) : [...new Set([...settings.muted, x.name])]; save(); renderChrome(); }));
   muteBoxes.forEach((b, i) => b.append(el("span", { class: "tag" }, srcs[i].lang.toUpperCase())));
   $("list").replaceChildren(
     section(t("setLanguage"),
@@ -395,7 +407,7 @@ async function renderSettings(seq) {
       field(t("showLang"), select(settings.show, [["all", t("showAll")], ["fr", t("showFr")], ["en", t("showEn")]], opt("show", () => renderChrome())))),
     section(t("setTranslation"), auto, engine, hint(t("trNote")), el("button", { class: "btn", type: "button", onclick: () => { service.clearCache(); say(t("clearedTr")); } }, t("clearTr"))),
     section(t("setCats"), hint(t("catsHelp")), el("div", { class: "grid" }, ...CAT_KEYS.map((k) => check(followed().includes(k), catLabel(settings.lang, k), (on) => togglePref(k, on))))),
-    section(t("setSources"), hint(t("sourcesHelp")), el("div", { class: "grid" }, ...muteBoxes), el("button", { class: "btn", type: "button", onclick: () => { settings.muted = []; save(); renderChrome(); again(); } }, t("unmuteAll"))),
+    section(t("setSources"), hint(bad ? t("srcSummary", { bad, total: srcs.length }) : t("srcAllOk")), hint(t("sourcesHelp")), el("div", { class: "grid" }, ...muteBoxes), el("button", { class: "btn", type: "button", onclick: () => { settings.muted = []; save(); renderChrome(); again(); } }, t("unmuteAll"))),
     section(t("setDisplay"),
       field(t("theme"), select(settings.theme, [["auto", t("themeAuto")], ["light", t("themeLight")], ["dark", t("themeDark")]], look)),
       field(t("textSize"), select(settings.size, [["s", t("sizeS")], ["m", t("sizeM")], ["l", t("sizeL")]], opt("size", applyAppearance))),

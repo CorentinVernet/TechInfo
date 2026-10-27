@@ -126,3 +126,28 @@ describe("entités HTML", () => {
     expect(parseFeed(xml)[0].title).toBe("Spiral’s Edge");
   });
 });
+
+describe("flux réels : tolérance", () => {
+  const wp = (body: string, title = "Un article avec du code") => `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Blog</title>
+<item><title>${title}</title><link>https://exemple.test/a</link><pubDate>Mon, 26 Oct 2026 10:00:00 GMT</pubDate><content:encoded><![CDATA[${body}]]></content:encoded></item>
+<item><title>Autre article</title><link>https://exemple.test/b</link></item></channel></rss>`;
+  it("un exemple de code <!DOCTYPE html> dans un article n'invalide plus tout le flux", () => {
+    expect(parseFeed(wp("<pre><code><!DOCTYPE html>\n<html></html></code></pre>"))).toHaveLength(2);
+    expect(parseFeed(wp("<!ENTITY x 'y'>"))).toHaveLength(2);
+  });
+  it("répare une esperluette non échappée sans abîmer le contenu CDATA", () => {
+    const items = parseFeed(wp("a && b", "Q&A : Rust & Go"));
+    expect(items[0].title).toBe("Q&A : Rust & Go");
+    expect(items[0].description).toBe("a && b");
+  });
+  it("retire les caractères de contrôle invalides", () => { expect(parseFeed(wp("x", "Titre\u0007 propre"))[0].title).toBe("Titre propre"); });
+  it("XML vraiment cassé : récupère les articles lisibles plutôt que de tout perdre", () => {
+    const broken = `<rss><channel><item><title>Premier</title><link>https://exemple.test/1</link></item><item><title>Deuxième <b></title><link>https://exemple.test/2</link></item><item><title>Tronqué`;
+    const items = parseFeed(broken);
+    expect(items.map((i) => i.link)).toEqual(["https://exemple.test/1", "https://exemple.test/2"]);
+  });
+  it("refuse toujours un DOCTYPE/ENTITY dans le prologue (protection contre les entités malveillantes)", () => {
+    expect(() => parseFeed('<?xml version="1.0"?><!DOCTYPE rss [<!ENTITY a "b">]><rss version="2.0"><channel/></rss>')).toThrow("refusé");
+    expect(() => parseFeed("<!DOCTYPE html><html><body>pas un flux</body></html>")).toThrow();
+  });
+});
