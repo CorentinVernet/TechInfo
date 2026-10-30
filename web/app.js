@@ -2,10 +2,12 @@ import { api, peekUpdates, applyUpdates } from "./api.js";
 import { t as tr, detectLang, catLabel, localizeReason, localizeBriefingSummary, CAT_KEYS, LANGS } from "./i18n.js";
 import { service } from "./translate.js";
 import { MODEL_MB } from "./constants.js";
+import { GLOSSARY, poolFor, termOf, termText } from "./glossary.js";
+import { dailyQuiz, dayId, norm, READERS, suits, wordOfDay } from "./insights.js";
 
 // ---------- réglages (gardés dans ce navigateur) ----------
 const SKEY = "techinfo:settings:v1";
-const DEFAULTS = () => ({ lang: detectLang(), show: "all", auto: false, modelOk: false, theme: "auto", size: "m", density: "comfortable", summary: "3", home: "foryou", sort: "date", minLevel: "minor", hideRead: false, muted: [], layout: "cards", groupDays: true, swipeRight: "favorite", swipeLeft: "read", openIn: "tab", onboarded: false });
+const DEFAULTS = () => ({ lang: detectLang(), show: "all", auto: false, modelOk: false, theme: "auto", size: "m", density: "comfortable", summary: "3", home: "foryou", sort: "date", minLevel: "minor", hideRead: false, muted: [], layout: "cards", groupDays: true, swipeRight: "favorite", swipeLeft: "read", openIn: "tab", onboarded: false, reader: "expert", images: true, weekSeen: "" });
 const settings = DEFAULTS();
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SKEY) || "{}")); } catch { /* réglages par défaut */ }
 const SWIPE = ["favorite", "read", "share", "off"];
@@ -18,7 +20,8 @@ function sanitize() {
   settings.home = pick(settings.home, ["briefing", "foryou", "explore"], "foryou"); settings.sort = pick(settings.sort, ["date", "score"], "date");
   settings.minLevel = pick(settings.minLevel, ["minor", "follow", "important", "critical"], "minor");
   settings.auto = !!settings.auto; settings.modelOk = !!settings.modelOk; settings.hideRead = !!settings.hideRead;
-  if (!Array.isArray(settings.muted)) settings.muted = [];
+  settings.muted = Array.isArray(settings.muted) ? settings.muted.filter((n) => typeof n === "string") : [];
+  settings.reader = pick(settings.reader, READERS, "expert"); settings.images = settings.images !== false; settings.weekSeen = String(settings.weekSeen ?? "");
   settings.layout = pick(settings.layout, ["cards", "compact"], "cards"); settings.groupDays = settings.groupDays !== false; settings.onboarded = !!settings.onboarded;
   settings.swipeRight = pick(settings.swipeRight, SWIPE, "favorite"); settings.swipeLeft = pick(settings.swipeLeft, SWIPE, "read"); settings.openIn = pick(settings.openIn, ["tab", "same"], "tab");
 }
@@ -33,7 +36,7 @@ const state = { view: settings.home, cat: "", favTab: "saved", me: null, seq: 0,
 const COLORS = { light: "#e9eef2", dark: "#0e1923" };
 function applyAppearance() {
   const r = document.documentElement;
-  r.dataset.theme = settings.theme; r.dataset.size = settings.size; r.dataset.density = settings.density; r.dataset.summary = settings.summary; r.dataset.layout = settings.layout;
+  r.dataset.theme = settings.theme; r.dataset.size = settings.size; r.dataset.density = settings.density; r.dataset.summary = settings.summary; r.dataset.layout = settings.layout; r.dataset.reader = settings.reader;
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", settings.theme === "auto" ? ((m.getAttribute("media") || "").includes("dark") ? COLORS.dark : COLORS.light) : COLORS[settings.theme]));
 }
 
@@ -58,10 +61,35 @@ let notifyTimer; const notify = (msg, ms = 1600) => { toast(msg); clearTimeout(n
 const jsonBody = (b, method = "POST") => ({ method, headers: { "content-type": "application/json" }, body: JSON.stringify(b) });
 const call = async (path, opts) => { try { return await (await api(path, opts)).json(); } catch (e) { throw new Error(t("err", { n: String(e.message).replace(/\D+/g, "") || "?" })); } };
 const followed = () => state.me?.categories ?? [];
+const myTopics = () => state.me?.topics ?? [];
 const needsTr = (a) => LANGS.includes(a.lang) && a.lang !== settings.lang;
-const visible = (a) => (settings.show === "all" || a.lang === settings.show) && !settings.muted.includes(a.source_name) && LEVEL[a.importance] >= LEVEL[settings.minLevel];
+const visible = (a) => (settings.show === "all" || a.lang === settings.show) && !settings.muted.includes(a.source_name) && LEVEL[a.importance] >= LEVEL[settings.minLevel] && (!a.reading || suits(a.reading, settings.reader));
 const field = (label, control) => el("label", { class: "field" }, el("span", {}, label), control);
 const hint = (txt) => el("p", { class: "hint" }, txt);
+const section = (title, ...kids) => el("section", { class: "set" }, el("h2", {}, title), ...kids.filter(Boolean));
+const hue = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.codePointAt(0)) % 360, 7);
+/** Logo de la source, hébergé par le site. À défaut, sa première lettre sur un fond qui lui est propre. */
+function srcLogo(name, logo) {
+  const mono = () => el("span", { class: "src-logo mono", "aria-hidden": "true", "data-l": String(name || "?")[0].toUpperCase(), style: `--h:${hue(name)}` });
+  if (!logo) return mono();
+  const img = el("img", { class: "src-logo", src: logo, alt: "", width: "20", height: "20", loading: "lazy", decoding: "async" });
+  img.addEventListener("error", () => img.replaceWith(mono()));
+  return img;
+}
+/** Image de l'article, chargée depuis le site de la source : sans le référent, et seulement si le réglage est actif. */
+function articleImage(a, cls = "thumb") {
+  if (!settings.images || !/^https:\/\//i.test(a.image ?? "")) return null;
+  const img = el("img", { class: cls, src: a.image, alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" });
+  img.addEventListener("error", () => img.remove());
+  return img;
+}
+const termRows = (ids) => ids.map(termOf).filter(Boolean).flatMap((g) => { const x = termText(g, settings.lang, settings.reader); return [el("dt", {}, x.term), el("dd", {}, x.def)]; });
+/** Explication écrite à l'avance d'après la catégorie et le glossaire : le résumé de la source n'est pas réécrit. */
+function plainBlock(a) {
+  const urgent = a.category === "security" && (a.importance === "critical" || a.importance === "important");
+  const rows = termRows(a.reading?.terms ?? []);
+  return el("div", { class: "plain" }, el("strong", {}, t("plainLabel")), el("p", {}, `${t(`plain_${a.category}`)}${urgent ? ` ${t("plainUrgent")}` : ""}`), ...(rows.length ? [el("dl", {}, ...rows)] : []));
+}
 const dirFor = () => (settings.lang === "fr" ? ["en", "fr"] : ["fr", "en"]);
 
 function applyStatic() {
@@ -213,8 +241,8 @@ function card(a) {
   art._paintFav(); art._paintRead();
   const when = a.published_at ?? a.collected_at;
   art.append(
-    el("div", { class: "meta" }, el("span", { class: `lvl ${a.importance}` }, t(`lvl_${a.importance}`)), el("span", {}, `${a.source_name}${a.source_count > 1 ? ` +${a.source_count - 1}` : ""}`), el("span", {}, catLabel(settings.lang, a.category)), el("time", { datetime: when, title: absDate(new Date(when)) }, ago(a)), trBadge),
-    el("h2", {}, title), ...(sum ? [sum] : []), detail,
+    el("div", { class: "meta" }, el("span", { class: `lvl ${a.importance}` }, t(`lvl_${a.importance}`)), el("span", { class: "src" }, srcLogo(a.source_name, a.source_logo), `${a.source_name}${a.source_count > 1 ? ` +${a.source_count - 1}` : ""}`), el("span", {}, catLabel(settings.lang, a.category)), el("time", { datetime: when, title: absDate(new Date(when)) }, ago(a)), trBadge),
+    ...[articleImage(a)].filter(Boolean), el("h2", {}, title), ...(settings.reader !== "expert" ? [plainBlock(a)] : []), ...(sum ? [sum] : []), detail,
     el("div", { class: "actions" }, ext(a.url, t("readSource"), "btn primary"), trBtn, share, fav, read));
   if (needsTr(a) && settings.auto) { const hit = service.cached(a.id, settings.lang); if (hit) { a._tr = hit; a._shown = "tr"; } }
   attachSwipe(art, a);
@@ -226,6 +254,7 @@ function fill(d, a) {
   d.replaceChildren(el("p", { class: "meta" }, `${a.summary ? t("summaryNote") : t("noSummaryNote")}${t("interest", { level, score: a.score })}`));
   if (a.reasons?.length) d.append(el("p", {}, t("why", { list: a.reasons.map((r) => localizeReason(settings.lang, r)).join(", ") })));
   if (a.cvss != null) d.append(el("p", {}, t("cvss", { score: a.cvss, src: a.cvss_source })));
+  if (settings.reader === "expert" && a.reading?.terms?.length) d.append(el("p", {}, t("plainTerms")), el("dl", { class: "terms" }, ...termRows(a.reading.terms)));
   d.append(el("p", {}, t("sources")), el("ul", {}, ...a.sources.map((s) => el("li", {}, ext(s.url, s.name)))));
   if (a.links?.length) d.append(el("p", {}, t("techLinks")), el("ul", {}, ...a.links.map((l) => el("li", {}, ext(l, l)))));
   d.append(el("button", { class: "btn btn-copy", type: "button", onclick: () => copyLink(a.url) }, t("copyLink")));
@@ -251,7 +280,9 @@ function params(reset, limit) {
   const p = new URLSearchParams({ limit: String(limit), offset: String(reset ? 0 : state.offset) });
   const q = $("q").value.trim(); if (q) p.set("q", q);
   if (state.view === "favorites") { p.set("favorites", "1"); return p; }
-  if (state.cat) p.set("category", state.cat); else if (state.view === "foryou" && followed().length) p.set("cats", followed().join(","));
+  if (state.cat) p.set("category", state.cat);
+  else if (state.view === "foryou") { if (followed().length) p.set("cats", followed().join(",")); if (myTopics().length) p.set("topics", JSON.stringify(myTopics())); }
+  if (settings.reader !== "expert") p.set("reader", settings.reader);
   if (settings.show !== "all") p.set("lang", settings.show);
   if (settings.minLevel !== "minor") p.set("minlevel", settings.minLevel);
   if (settings.hideRead) p.set("unread", "1");
@@ -267,9 +298,12 @@ async function load(reset = true) {
   const restoreY = () => { if (restore?.y) window.scrollTo(0, restore.y); };
   cancelTranslations(); state.loading = true; state.more = false; updateMore(); setBanner(null);
   list.setAttribute("aria-busy", "true"); say(t("loading"));
-  if (reset) { resetList(); if (state.view !== "settings") list.append(...skeletons(state.view === "briefing" ? 3 : 4)); } else list.append(...skeletons(2));
+  if (reset) { resetList(); if (state.view !== "settings" && state.view !== "learn") list.append(...skeletons(state.view === "briefing" ? 3 : 4)); } else list.append(...skeletons(2));
   try {
+    if (reset) await renderExtras(seq);
+    if (!live()) return;
     if (state.view === "settings") { say(""); return void (await renderSettings(seq)); }
+    if (state.view === "learn") { say(""); return void (await renderLearn(seq)); }
     if (state.view === "briefing") {
       const { briefing: b } = await call("/api/briefing"); if (!live()) return;
       dropSkeletons();
@@ -282,7 +316,7 @@ async function load(reset = true) {
       dropSkeletons(); state.favTab === "archived" ? items.forEach((a) => list.append(archivedCard(a))) : addCards(list, items, false);
       say(items.length ? "" : t(state.favTab === "archived" ? "noArchived" : "noHistory")); return restoreY();
     }
-    if (state.view === "foryou" && !followed().length && !state.cat) setBanner(el("div", {}, el("p", {}, t("forYouEmpty")), el("button", { class: "btn", type: "button", onclick: () => go("settings") }, t("goSettings"))));
+    if (state.view === "foryou" && !followed().length && !myTopics().length && !state.cat) setBanner(el("div", {}, el("p", {}, t("forYouEmpty")), el("button", { class: "btn", type: "button", onclick: () => go("settings") }, t("goSettings"))));
     const fav = state.view === "favorites", limit = fav ? 100 : reset ? Math.min(Math.max(PAGE, restore?.loaded ?? 0), 300) : PAGE;
     const { items } = await call(`/api/articles?${params(reset, limit)}`); if (!live()) return;
     dropSkeletons();
@@ -304,7 +338,7 @@ async function explainEmpty(cat, live) {
 }
 
 // ---------- adresse partageable et retour qui garde la place ----------
-const VIEWS = [["briefing", "tabBriefing"], ["foryou", "tabForYou"], ["explore", "tabExplore"], ["favorites", "tabSaved"], ["settings", "tabSettings"]];
+const VIEWS = [["briefing", "tabBriefing"], ["foryou", "tabForYou"], ["explore", "tabExplore"], ["favorites", "tabSaved"], ["learn", "tabLearn"], ["settings", "tabSettings"]];
 const FILTER_VIEWS = ["foryou", "explore", "favorites"];
 const FAV_TABS = ["saved", "archived", "history"];
 function hashOf() {
@@ -327,7 +361,7 @@ function pushRoute(replace = false) {
 function go(view, cat = "") { state.view = view; state.cat = cat; state.restore = null; pushRoute(); renderChrome(); load(); window.scrollTo({ top: 0 }); }
 
 // ---------- navigation ----------
-const activeFilters = () => [settings.minLevel !== "minor", settings.hideRead, settings.sort === "score", settings.show !== "all", settings.muted.length > 0].filter(Boolean).length;
+const activeFilters = () => [settings.minLevel !== "minor", settings.hideRead, settings.sort === "score", settings.show !== "all", settings.muted.length > 0, settings.reader !== "expert"].filter(Boolean).length;
 function renderChrome() {
   $("tabbar").replaceChildren(...VIEWS.map(([v, k]) => el("button", { type: "button", "data-view": v, "aria-current": String(state.view === v), onclick: () => go(v) }, t(k))));
   $("q").hidden = !FILTER_VIEWS.includes(state.view); $("filterBtn").hidden = !FILTER_VIEWS.slice(0, 2).includes(state.view); if ($("filterBtn").hidden) $("filters").classList.remove("open");
@@ -352,9 +386,11 @@ function select(value, options, onchange, label) {
   return el("select", { ...(label ? { "aria-label": label } : {}), onchange: (e) => onchange(e.target.value) }, ...options.map(([v, l]) => el("option", { value: v, ...(v === String(value) ? { selected: "" } : {}) }, l)));
 }
 function check(checked, label, onchange) { return el("label", { class: "check" }, el("input", { type: "checkbox", ...(checked ? { checked: "" } : {}), onchange: (e) => onchange(e.target.checked, e.target) }), label); }
+const readerOpts = () => [["expert", t("readerExpert")], ["novice", t("readerNovice")], ["kid", t("readerKid")]];
 function renderFilters() {
   const refresh = () => { save(); renderChrome(); load(); };
   $("filters").replaceChildren(
+    select(settings.reader, readerOpts(), (v) => { settings.reader = v; applyAppearance(); refresh(); }, t("readerLabel")),
     select(settings.minLevel, ["minor", "follow", "important", "critical"].map((k) => [k, t(`minl_${k}`)]), (v) => { settings.minLevel = v; refresh(); }, t("minLevelLabel")),
     select(settings.sort, [["date", t("sortDate")], ["score", t("sortScore")]], (v) => { settings.sort = v; refresh(); }, t("sortLabel")),
     select(settings.layout, [["cards", t("layoutCards")], ["compact", t("layoutCompact")]], (v) => { settings.layout = v; save(); applyAppearance(); }, t("layoutLabel")),
@@ -385,7 +421,6 @@ async function renderSettings(seq) {
   const { items: srcs } = await call("/api/sources");
   if (seq !== state.seq) return;
   const again = () => renderSettings(state.seq);
-  const section = (title, ...kids) => el("section", { class: "set" }, el("h2", {}, title), ...kids.filter(Boolean));
   const opt = (key, after) => (v) => { settings[key] = v; sanitize(); save(); after?.(); };
   const look = opt("theme", () => { applyAppearance(); renderChrome(); }), engine = hint("…");
   const full = () => { applyStatic(); renderChrome(); again(); };
@@ -399,7 +434,7 @@ async function renderSettings(seq) {
   service.engineInfo(...dirFor()).then((i) => { engine.textContent = i.kind === "chrome" ? t("engineChrome") : i.kind === "model" ? t("engineModel", { mb: MODEL_MB }) : t("engineNone"); });
   const note = (x) => `${x.last_error ? t("srcErr", { err: x.last_error }) : x.last_success_at ? t("srcOk", { when: ago({ published_at: x.last_success_at }) }) : t("srcNever")} · ${t("srcCount", { n: x.count })}`;
   const bad = srcs.filter((x) => x.last_error).length;
-  const muteBoxes = srcs.map((x) => check(!settings.muted.includes(x.name), el("span", { class: "srcname" }, x.name, el("small", { class: `srcnote${x.last_error ? " bad" : ""}` }, note(x))), (on) => { settings.muted = on ? settings.muted.filter((n) => n !== x.name) : [...new Set([...settings.muted, x.name])]; save(); renderChrome(); }));
+  const muteBoxes = srcs.map((x) => check(!settings.muted.includes(x.name), el("span", { class: "srcname" }, el("span", { class: "src" }, srcLogo(x.name, x.logo), x.name), el("small", { class: `srcnote${x.last_error ? " bad" : ""}` }, note(x))), (on) => { settings.muted = on ? settings.muted.filter((n) => n !== x.name) : [...new Set([...settings.muted, x.name])]; save(); renderChrome(); }));
   muteBoxes.forEach((b, i) => b.append(el("span", { class: "tag" }, srcs[i].lang.toUpperCase())));
   $("list").replaceChildren(
     section(t("setLanguage"),
@@ -407,6 +442,8 @@ async function renderSettings(seq) {
       field(t("showLang"), select(settings.show, [["all", t("showAll")], ["fr", t("showFr")], ["en", t("showEn")]], opt("show", () => renderChrome())))),
     section(t("setTranslation"), auto, engine, hint(t("trNote")), el("button", { class: "btn", type: "button", onclick: () => { service.clearCache(); say(t("clearedTr")); } }, t("clearTr"))),
     section(t("setCats"), hint(t("catsHelp")), el("div", { class: "grid" }, ...CAT_KEYS.map((k) => check(followed().includes(k), catLabel(settings.lang, k), (on) => togglePref(k, on))))),
+    topicsSection(again),
+    section(t("readerLabel"), hint(t("readerHelp")), field(t("readerLabel"), select(settings.reader, readerOpts(), opt("reader", () => { applyAppearance(); renderChrome(); })))),
     section(t("setSources"), hint(bad ? t("srcSummary", { bad, total: srcs.length }) : t("srcAllOk")), hint(t("sourcesHelp")), el("div", { class: "grid" }, ...muteBoxes), el("button", { class: "btn", type: "button", onclick: () => { settings.muted = []; save(); renderChrome(); again(); } }, t("unmuteAll"))),
     section(t("setDisplay"),
       field(t("theme"), select(settings.theme, [["auto", t("themeAuto")], ["light", t("themeLight")], ["dark", t("themeDark")]], look)),
@@ -414,7 +451,8 @@ async function renderSettings(seq) {
       field(t("density"), select(settings.density, [["comfortable", t("densComfort")], ["compact", t("densCompact")]], opt("density", applyAppearance))),
       field(t("layoutLabel"), select(settings.layout, [["cards", t("layoutCards")], ["compact", t("layoutCompact")]], opt("layout", () => { applyAppearance(); renderChrome(); }))),
       field(t("summaryLines"), select(settings.summary, [["off", t("sumOff")], ["2", t("sum2")], ["3", t("sum3")], ["5", t("sum5")], ["full", t("sumFull")]], opt("summary", applyAppearance))),
-      check(settings.groupDays, t("groupDays"), (on) => { settings.groupDays = on; save(); })),
+      check(settings.groupDays, t("groupDays"), (on) => { settings.groupDays = on; save(); }),
+      check(settings.images, t("imagesLabel"), (on) => { settings.images = on; save(); }), hint(t("imagesHelp"))),
     section(t("setGestures"), hint(t("swipeHelp")),
       field(t("swipeRight"), select(settings.swipeRight, swipeOpts, opt("swipeRight"))),
       field(t("swipeLeft"), select(settings.swipeLeft, swipeOpts, opt("swipeLeft"))),
@@ -426,9 +464,209 @@ async function renderSettings(seq) {
       check(settings.hideRead, t("unread"), (on) => { settings.hideRead = on; save(); renderChrome(); }),
       el("button", { class: "btn", type: "button", onclick: () => openWelcome() }, t("redoWelcome"))),
     section(t("setApp"), installItem() ?? hint("")),
+    transferSection(),
     section(t("setData"),
       el("button", { class: "btn", type: "button", onclick: () => { if (!confirm(t("confirmReset"))) return; Object.assign(settings, DEFAULTS(), { onboarded: true }); sanitize(); save(); applyAppearance(); full(); } }, t("resetSettings")),
       el("button", { class: "btn", type: "button", onclick: async () => { if (!confirm(t("confirmData"))) return; await call("/api/data", { method: "DELETE" }); service.clearCache(); say(t("done")); } }, t("resetData"))));
+}
+
+function topicsSection(again) {
+  const box = el("input", { type: "text", maxlength: "60", placeholder: t("topicPh"), "aria-label": t("topicPh"), class: "text" });
+  const add = async () => { const v = box.value.trim(); if (!v) return; await setTopic(v, true); again(); };
+  box.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); add(); } });
+  return section(t("setTopics"), hint(t("topicsHelp")), myTopics().length ? el("div", { class: "topic-list" }, ...myTopics().map((x) => el("button", { class: "chip", type: "button", "aria-label": t("topicRemove", { topic: x }), onclick: async () => { await setTopic(x, false); again(); } }, `${x} ×`))) : hint(t("noTopics")), box, el("button", { class: "btn", type: "button", onclick: add }, t("topicAddBtn")));
+}
+
+// ---------- changer d'appareil : export et import ----------
+const NOT_EXPORTED = ["modelOk", "onboarded"];
+async function exportText() {
+  const s = Object.fromEntries(Object.entries(settings).filter(([k]) => !NOT_EXPORTED.includes(k)));
+  return JSON.stringify({ app: "techinfo", version: 1, exported_at: new Date().toISOString(), settings: s, data: await call("/api/export") });
+}
+async function exportFile() {
+  const url = URL.createObjectURL(new Blob([await exportText()], { type: "application/json" }));
+  const a = el("a", { href: url, download: `techinfo-reglages-${dayId()}.json` }); document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notify(t("exportDone"));
+}
+async function importText(text) {
+  let x = null;
+  try { x = JSON.parse(String(text).trim()); } catch { /* signalé juste après */ }
+  const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  if (!isObj(x) || x.app !== "techinfo" || x.version !== 1 || !isObj(x.settings) || !isObj(x.data)) { say(t("importBad"), true); return false; }
+  if (!confirm(t("importConfirm", { fav: Object.keys(isObj(x.data.fav) ? x.data.fav : {}).length, read: Object.keys(isObj(x.data.read) ? x.data.read : {}).length }))) return false;
+  for (const k of Object.keys(DEFAULTS())) if (!NOT_EXPORTED.includes(k) && Object.hasOwn(x.settings, k)) settings[k] = x.settings[k]; // seules les clés connues sont reprises
+  sanitize(); settings.onboarded = true; save();
+  const r = await call("/api/import", jsonBody(x.data));
+  state.me = { ...state.me, categories: r.categories, topics: r.topics };
+  applyAppearance(); applyStatic(); renderChrome(); await renderSettings(state.seq);
+  say(t("importDone")); return true;
+}
+function transferSection() {
+  const file = el("input", { type: "file", accept: "application/json,.json", hidden: "", onchange: async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; if (f.size > 10e6) return say(t("importBad"), true); await importText(await f.text()); } });
+  const paste = el("textarea", { class: "text", rows: "2", placeholder: t("importPh"), "aria-label": t("importPh") });
+  return section(t("setTransfer"), hint(t("transferHelp")),
+    el("button", { class: "btn", type: "button", onclick: exportFile }, t("exportFile")),
+    el("button", { class: "btn", type: "button", onclick: async () => { await copyLink(await exportText()); notify(t("exportCopied")); } }, t("exportCopy")),
+    el("button", { class: "btn", type: "button", onclick: () => file.click() }, t("importFile")), file, paste,
+    el("button", { class: "btn", type: "button", onclick: () => { if (paste.value.trim()) importText(paste.value); } }, t("importPaste")));
+}
+
+// ---------- sujets suivis et « Ça monte » ----------
+async function setTopic(topic, on) {
+  await call(on ? "/api/topics" : `/api/topics?topic=${encodeURIComponent(topic)}`, on ? jsonBody({ topic }) : { method: "DELETE" });
+  state.me = { ...state.me, ...(await call("/api/me")) };
+}
+function searchFor(word) { $("q").value = word; state.view = "explore"; state.cat = ""; state.restore = null; pushRoute(); renderChrome(); load(); window.scrollTo({ top: 0 }); }
+function followButton(q) {
+  const topic = norm(q), on = myTopics().includes(topic);
+  return el("button", { class: `btn follow${on ? " on" : ""}`, type: "button", "aria-pressed": String(on), onclick: async () => { await setTopic(topic, !on); renderExtras(state.seq); } }, t(on ? "unfollow" : "follow", { topic: q }));
+}
+async function topicsRow() {
+  const { items } = await call("/api/topics");
+  if (!items.length) return null;
+  return el("div", { class: "extra" }, el("h3", {}, t("myTopics")), el("div", { class: "row" }, ...items.map((x) => el("button", { class: "chip", type: "button", "data-topic": x.topic, onclick: async () => { await call("/api/topics", jsonBody({ topic: x.topic }, "PUT")); searchFor(x.topic); } }, x.topic, ...(x.fresh ? [el("small", { class: "fresh" }, t("topicFresh", { n: x.fresh }))] : [])))));
+}
+async function trendsRow() {
+  const { items } = await call("/api/trends");
+  if (!items.length) return null;
+  return el("div", { class: "extra" }, el("h3", { title: t("trendsHelp") }, `↗ ${t("trendsTitle")}`), el("div", { class: "row" }, ...items.map((x) => el("button", { class: "chip trend", type: "button", "data-trend": x.topic, title: t("trendCount", { n: x.count }), onclick: () => searchFor(x.label) }, x.label, el("small", {}, `↑ ${x.count}`)))));
+}
+
+// ---------- stories du jour ----------
+const STORY_MAX = 10, STORY_PER_SOURCE = 2, STORY_MS = 8000;
+async function storyList() {
+  const { items } = await call(`/api/stories${settings.reader === "expert" ? "" : `?reader=${settings.reader}`}`), per = new Map();
+  return items.filter(visible).filter((a) => { const n = per.get(a.source_name) ?? 0; per.set(a.source_name, n + 1); return n < STORY_PER_SOURCE; }).slice(0, STORY_MAX);
+}
+async function storiesRow() {
+  const items = await storyList();
+  if (!items.length) return null;
+  const firstNew = Math.max(0, items.findIndex((a) => !a.seen));
+  return el("div", { class: "extra" }, el("div", { class: "story-row", role: "list", "aria-label": t("storiesAria") }, ...items.map((a, i) => el("button", { class: `story-cell${a.seen ? "" : " unseen"}`, type: "button", role: "listitem", "aria-label": `${a.source_name} : ${a.title}`, onclick: () => openStories(items, i) },
+    el("span", { class: "story-ring" }, articleImage(a, "story-img") ?? srcLogo(a.source_name, a.source_logo)), el("span", { class: "story-name" }, a.source_name))), ...(firstNew > 0 ? [el("button", { class: "story-cell all", type: "button", onclick: () => openStories(items, firstNew) }, el("span", { class: "story-ring" }, "▶"), el("span", { class: "story-name" }, t("storiesAll")))] : [])));
+}
+let closeStoryView = null;
+function openStories(items, start = 0) {
+  closeStoryView?.();
+  const d = $("stories"); let i = start, elapsed = 0, finished = false, dead = false;
+  let paused = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; // pas de défilement imposé si l'utilisateur limite les animations
+  const bars = items.map(() => el("span", { class: "story-bar" }, el("i", {})));
+  const pauseBtn = el("button", { class: "icon-btn", type: "button", onclick: () => { paused = !paused; paintPause(); } });
+  const paintPause = () => { pauseBtn.textContent = paused ? "▶" : "❚❚"; pauseBtn.setAttribute("aria-label", t(paused ? "storyPlay" : "storyPause")); };
+  const paintBars = () => bars.forEach((b, k) => b.firstChild.style.setProperty("width", k < i || finished ? "100%" : k > i ? "0%" : `${Math.min(100, (elapsed / STORY_MS) * 100)}%`));
+  const body = el("div", { class: "story-body" });
+  const close = () => { if (dead) return; dead = true; clearInterval(tick); document.removeEventListener("keydown", onKey); closeStoryView = null; d.close?.(); d.removeAttribute("open"); d.replaceChildren(); load(); };
+  const paintEnd = async () => {
+    finished = true; paintBars(); pauseBtn.hidden = true;
+    await call("/api/stories/done", jsonBody({})); const st = await call("/api/stats");
+    if (dead) return;
+    body.replaceChildren(el("div", { class: "story-end" }, el("div", { class: "story-check", "aria-hidden": "true" }, "✓"), el("h2", {}, t("storyDoneTitle")), el("p", {}, t("storyDoneText", { n: items.length })),
+      el("p", { class: "story-streak" }, `🔥 ${t("streakN", { n: st.streak })}`),
+      el("button", { class: "btn primary", type: "button", onclick: close }, t("storyDoneBack")),
+      el("button", { class: "btn", type: "button", onclick: () => { state.view = "learn"; state.cat = ""; state.restore = null; pushRoute(); renderChrome(); close(); window.scrollTo({ top: 0 }); } }, t("storyDoneLearn"))));
+  };
+  const paint = () => {
+    const a = items[i], tr = needsTr(a) ? service.cached(a.id, settings.lang) : null;
+    elapsed = 0; paintBars(); pauseBtn.hidden = false;
+    call("/api/stories/seen", jsonBody({ id: a.id })).catch(() => {});
+    a.seen = 1;
+    body.replaceChildren(
+      el("div", { class: "story-media" }, articleImage(a, "story-photo") ?? srcLogo(a.source_name, a.source_logo)),
+      el("div", { class: "story-text" },
+        el("div", { class: "meta" }, el("span", { class: "src" }, srcLogo(a.source_name, a.source_logo), a.source_name), el("span", {}, catLabel(settings.lang, a.category)), el("span", {}, ago(a))),
+        el("h2", {}, tr?.title ?? a.title), ...(a.summary ? [el("p", { class: "sum" }, tr?.summary ?? a.summary)] : []), ...(settings.reader !== "expert" ? [plainBlock(a)] : []),
+        ext(a.url, t("readSource"), "btn primary")));
+    bars.forEach((b, k) => b.setAttribute("aria-current", String(k === i)));
+    head.setAttribute("aria-label", t("storyOf", { i: i + 1, n: items.length }));
+  };
+  const next = () => { if (finished) return; if (i < items.length - 1) { i++; paint(); } else paintEnd(); };
+  const prev = () => { if (finished) { finished = false; } else if (i > 0) i--; paint(); };
+  const onKey = (e) => { if (e.key === "ArrowRight") next(); else if (e.key === "ArrowLeft") prev(); };
+  const head = el("div", { class: "story-head", role: "group" }, el("div", { class: "story-bars" }, ...bars), pauseBtn, el("button", { class: "icon-btn", type: "button", "aria-label": t("storyClose"), onclick: close }, "✕"));
+  d.replaceChildren(head, body, el("button", { class: "story-nav prev", type: "button", "aria-label": t("storyPrev"), onclick: prev }, "‹"), el("button", { class: "story-nav next", type: "button", "aria-label": t("storyNext"), onclick: next }, "›"));
+  const tick = setInterval(() => { if (paused || finished || document.hidden) return; elapsed += 100; paintBars(); if (elapsed >= STORY_MS) next(); }, 100);
+  document.addEventListener("keydown", onKey);
+  d.addEventListener("close", close, { once: true });
+  closeStoryView = close;
+  paintPause(); paint();
+  if (!d.open) { try { d.showModal(); } catch { d.setAttribute("open", ""); } }
+}
+
+// ---------- zone au-dessus de la liste ----------
+async function renderExtras(seq) {
+  const box = $("extras"), v = state.view, q = FILTER_VIEWS.includes(v) ? $("q").value.trim() : "", parts = [];
+  if (q && v !== "favorites") parts.push(followButton(q));
+  else if (!q && !state.cat) {
+    if (v === "briefing" || v === "foryou") parts.push(await storiesRow());
+    if (v === "briefing") parts.push(await weekBanner());
+    if (v === "foryou") parts.push(await topicsRow());
+    if (v === "briefing" || v === "explore") parts.push(await trendsRow());
+  }
+  if (seq !== state.seq) return;
+  const kids = parts.filter(Boolean);
+  box.replaceChildren(...kids); box.hidden = !kids.length;
+}
+/** Le lundi, rappel du bilan de la semaine écoulée (une fois, et seulement s'il y a quelque chose à montrer). */
+async function weekBanner() {
+  if (new Date().getDay() !== 1 || settings.weekSeen === dayId()) return null;
+  const { week } = await call("/api/stats");
+  if (!week.read && !week.quizDone && !week.stories) return null;
+  return el("button", { class: "btn week-banner", type: "button", onclick: () => { settings.weekSeen = dayId(); save(); go("learn"); } }, `📊 ${t("weekBanner")}`);
+}
+
+// ---------- page Apprendre ----------
+function quizSection(st, again) {
+  const box = el("div", { class: "quiz" }), qs = dailyQuiz(dayId(), 5, poolFor(settings.reader)), lang = settings.lang, reader = settings.reader;
+  const text = (id) => termText(termOf(id), lang, reader);
+  const intro = () => box.replaceChildren(
+    ...(st.quiz ? [el("p", { class: "score" }, t("quizScore", { ok: st.quiz[0], n: st.quiz[1] })), hint(t("quizKept"))] : []),
+    el("button", { class: `btn${st.quiz ? "" : " primary"}`, type: "button", onclick: () => ask(0, 0) }, t(st.quiz ? "quizAgain" : "quizStart")));
+  const ask = (n, ok) => {
+    const q = qs[n], label = (id) => (q.kind === "def" ? text(id).def : text(id).term);
+    const feedback = el("p", { class: "quiz-fb", role: "status" });
+    const advance = el("button", { class: "btn primary", type: "button", hidden: "", onclick: async () => {
+      if (n < qs.length - 1) return ask(n + 1, box._ok);
+      await call("/api/quiz", jsonBody({ ok: box._ok, total: qs.length }));
+      again();
+    } }, t(n < qs.length - 1 ? "quizNext" : "quizFinish"));
+    box._ok = ok;
+    const opts = q.options.map((id, i) => el("button", { class: "btn quiz-opt", type: "button", onclick: () => {
+      const right = i === q.correct; if (right) box._ok++;
+      opts.forEach((b, k) => { b.disabled = true; b.classList.toggle("ok", k === q.correct); b.classList.toggle("ko", k === i && !right); });
+      feedback.textContent = right ? t("quizRight") : t("quizWrong", { answer: label(q.options[q.correct]) });
+      advance.hidden = false; advance.focus?.();
+    } }, label(id)));
+    box.replaceChildren(el("p", { class: "hint" }, t("quizQ", { i: n + 1, n: qs.length })), el("p", { class: "quiz-q" }, q.kind === "def" ? t("quizDef", { term: text(q.id).term }) : t("quizTerm", { def: text(q.id).def })), ...opts, feedback, advance);
+  };
+  intro();
+  return section(t("quizTitle"), box);
+}
+function weekSection(w) {
+  if (!w.read && !w.quizDone && !w.stories) return section(t("weekTitle"), hint(t("weekEmpty")));
+  const delta = w.read - w.previous, lines = [t("weekRead", { n: w.read }), ...(w.previous ? [t("weekDelta", { d: delta > 0 ? `+${delta}` : String(delta) })] : []), t("weekDays", { n: w.activeDays })];
+  if (w.stories) lines.push(t("weekStories", { n: w.stories }));
+  if (w.quizDone) lines.push(t("weekQuiz", { ok: w.quizScore, n: w.quizTotal }));
+  if (w.topCats.length) lines.push(t("weekTop", { list: w.topCats.map((c) => `${catLabel(settings.lang, c.category)} (${c.count})`).join(", ") }));
+  return section(t("weekTitle"), el("ul", { class: "week" }, ...lines.map((l) => el("li", {}, l))));
+}
+function glossarySection() {
+  const rows = GLOSSARY.map((g) => ({ ...termText(g, settings.lang, settings.reader) })).sort((x, y) => x.term.localeCompare(y.term, settings.lang));
+  const list = el("dl", { class: "terms" }), none = hint(t("glossaryNone"));
+  const paint = (q) => { const hits = rows.filter((r) => norm(`${r.term} ${r.def}`).includes(norm(q))); list.replaceChildren(...hits.flatMap((r) => [el("dt", {}, r.term), el("dd", {}, r.def)])); none.hidden = hits.length > 0; };
+  const box = el("input", { type: "search", class: "text", placeholder: t("glossaryPh"), "aria-label": t("glossaryPh"), oninput: (e) => paint(e.target.value) });
+  paint("");
+  return section(t("glossaryTitle"), box, none, list);
+}
+async function renderLearn(seq) {
+  const st = await call("/api/stats");
+  if (seq !== state.seq) return;
+  const again = () => renderLearn(state.seq);
+  const w = termText(wordOfDay(dayId(), poolFor(settings.reader)), settings.lang, settings.reader);
+  $("list").replaceChildren(
+    section(t("streakTitle"), el("p", { class: "streak" }, st.streak ? `🔥 ${t("streakN", { n: st.streak })}` : t("streakZero")), st.best > 1 ? hint(t("streakBest", { n: st.best })) : null, hint(t("streakHelp"))),
+    section(t("wordTitle"), el("p", { class: "word" }, w.term), el("p", {}, w.def), el("button", { class: "btn", type: "button", onclick: () => searchFor(w.term) }, t("wordArticles"))),
+    quizSection(st, again), weekSection(st.week), glossarySection());
 }
 
 // ---------- premier lancement guidé ----------
@@ -444,6 +682,7 @@ function openWelcome() {
     d.replaceChildren(el("h2", { id: "welcome-title" }, t("welcomeTitle")), hint(t("welcomeIntro")),
       field(t("langLabel"), select(settings.lang, [["fr", "Français"], ["en", "English"]], (v) => { settings.lang = v; save(); applyStatic(); renderChrome(); render(); })),
       field(t("theme"), select(settings.theme, [["auto", t("themeAuto")], ["light", t("themeLight")], ["dark", t("themeDark")]], (v) => { settings.theme = v; save(); applyAppearance(); })),
+      field(t("readerLabel"), select(settings.reader, readerOpts(), (v) => { settings.reader = v; save(); applyAppearance(); })),
       el("h3", {}, t("welcomeCats")),
       el("div", { class: "grid" }, ...CAT_KEYS.map((k) => check(sel.has(k), catLabel(settings.lang, k), (on) => { on ? sel.add(k) : sel.delete(k); finishBtn.disabled = sel.size === 0; }))),
       el("button", { class: "btn", type: "button", onclick: () => { CAT_KEYS.forEach((k) => sel.add(k)); render(); } }, t("selectAll")),

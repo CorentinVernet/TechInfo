@@ -1,13 +1,35 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
-import { stripHtml } from "./text";
+import { decodeEntities, stripHtml } from "./text";
 export class FeedError extends Error {}
-export interface FeedItem { title: string; link: string; guid?: string; published?: string; updated?: string; description?: string }
+export interface FeedItem { title: string; link: string; guid?: string; published?: string; updated?: string; description?: string; image?: string }
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", trimValues: true });
 const txt = (v: any): string => (v == null ? "" : typeof v === "object" ? String(v["#text"] ?? "") : String(v));
 function atomLink(l: any): string {
   const arr = Array.isArray(l) ? l : l ? [l] : [];
   const alt = arr.find((x) => typeof x === "object" && (!x["@_rel"] || x["@_rel"] === "alternate")) ?? arr[0];
   return typeof alt === "object" ? String(alt["@_href"] ?? "") : String(alt ?? "");
+}
+const NOT_PHOTO = /pixel|tracker|feedburner|gravatar|emoji|smilies|1x1|\.svg(\?|$)/i;
+/** Image d'illustration : https seulement (le site est en https), sans pixels de suivi ni petites icônes. */
+export function safeImage(u: unknown): string | undefined {
+  const s = decodeEntities(String(u ?? "")).trim();
+  if (s.length > 500 || NOT_PHOTO.test(s)) return undefined;
+  try { return new URL(s).protocol === "https:" ? s : undefined; } catch { return undefined; }
+}
+const IMG = /<img\b[^>]*?\ssrc=["']([^"']+)["'][^>]*>/gi;
+function htmlImage(html: string): string | undefined {
+  for (const m of decodeEntities(html).matchAll(IMG)) {
+    if (/\s(?:width|height)=["']?[01]["'\s>/]/i.test(m[0])) continue;
+    const u = safeImage(m[1]); if (u) return u;
+  }
+  return undefined;
+}
+const list = (v: any): any[] => (Array.isArray(v) ? v : v == null ? [] : [v]);
+/** Cherche l'image dans les balises média du flux, puis dans le contenu HTML de l'article. */
+function itemImage(it: any): string | undefined {
+  const media = [...list(it["media:thumbnail"]), ...list(it["media:content"]).filter((m) => !m?.["@_medium"] || m["@_medium"] === "image"), ...list(it["media:group"]).flatMap((g) => [...list(g?.["media:thumbnail"]), ...list(g?.["media:content"])]), ...list(it.enclosure).filter((e) => /^image\//i.test(String(e?.["@_type"] ?? "")))];
+  for (const m of media) { const u = safeImage(m?.["@_url"]); if (u) return u; }
+  return htmlImage(txt(it["content:encoded"])) ?? htmlImage(txt(it.content)) ?? htmlImage(txt(it.description ?? it.summary));
 }
 const ROOT = /<(rss|feed|rdf:RDF)[\s>]/i;
 /** Répare les défauts courants des vrais flux : caractères de contrôle et « & » non échappés (hors blocs CDATA). */
@@ -23,7 +45,7 @@ function looseItems(xml: string): FeedItem[] {
   for (const b of xml.match(/<(item|entry)[\s>][\s\S]*?<\/\1>/gi) ?? []) {
     const title = stripHtml(tag(b, "title")), link = /<link[^>]*\shref=["']([^"']+)["']/i.exec(b)?.[1] ?? tag(b, "link");
     if (!title || !link) continue;
-    out.push({ title, link: link.trim(), guid: tag(b, "guid") || tag(b, "id") || undefined, published: tag(b, "pubDate") || tag(b, "published") || tag(b, "updated") || tag(b, "dc:date") || undefined, updated: tag(b, "updated") || undefined, description: tag(b, "description") || tag(b, "summary") || tag(b, "content:encoded") || tag(b, "content") || undefined });
+    out.push({ title, link: link.trim(), guid: tag(b, "guid") || tag(b, "id") || undefined, published: tag(b, "pubDate") || tag(b, "published") || tag(b, "updated") || tag(b, "dc:date") || undefined, updated: tag(b, "updated") || undefined, description: tag(b, "description") || tag(b, "summary") || tag(b, "content:encoded") || tag(b, "content") || undefined, image: safeImage(/<media:(?:thumbnail|content)[^>]*\surl=["']([^"']+)["']/i.exec(b)?.[1]) ?? htmlImage(b) });
   }
   return out;
 }
@@ -49,6 +71,7 @@ export function parseFeed(xml: string): FeedItem[] {
       published: txt(it.pubDate ?? it["dc:date"] ?? it.published ?? it.updated) || undefined,
       updated: txt(it.updated) || undefined,
       description: txt(it.description ?? it.summary ?? it["content:encoded"] ?? it.content) || undefined,
+      image: itemImage(it),
     });
   }
   return items;

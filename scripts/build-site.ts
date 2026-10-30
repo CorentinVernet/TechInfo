@@ -6,6 +6,7 @@ import { HOME } from "../src/server/paths";
 import { sqliteSql } from "../collector/sql";
 import { collect, briefing, purge } from "../collector/jobs";
 import { exportState, restoreState } from "../collector/site";
+import { buildLogos, logoPath } from "../collector/logos";
 
 const now = new Date();
 const raw = new DatabaseSync(":memory:");
@@ -26,6 +27,10 @@ if (st.status?.status === "failed") { console.error("Aucune source n'a répondu 
 rmSync("site", { recursive: true, force: true });
 mkdirSync(join("site", "data"), { recursive: true });
 cpSync("web", "site", { recursive: true });
+const cfgSources: { feed_url: string; site_url?: string }[] = JSON.parse(readFileSync(join(HOME, "config", "sources.json"), "utf8"));
+const logos = await buildLogos(cfgSources, join(HOME, "state", "logos"), join("site", "data", "logos"), now);
+const siteOf = new Map(cfgSources.map((s) => [s.feed_url, s.site_url]));
+for (const s of st.sources) s.logo = logoPath(logos, siteOf.get(s.feed_url));
 writeFileSync(join("site", "data", "articles.json"), JSON.stringify(st));
 writeFileSync(join("site", ".nojekyll"), "");
 console.log(`Site généré : ${st.articles.length} articles, ${st.sources.length} sources.`);

@@ -2,12 +2,13 @@ import type { DatabaseSync } from "node:sqlite";
 import { normTitle } from "../src/core/text";
 import { normalizeUrl } from "../src/core/url";
 import { defaultConfig } from "../src/core/rank";
+import { migrateCategory } from "../src/core/categories";
 
 export interface PublicConfig { includeSummary: boolean; summaryMaxChars: number }
 export interface State { version: 1; generated_at: string; config: { prefBonus: number }; sources: any[]; articles: any[]; article_sources: any[]; briefing: any | null; status: any }
 
 const SRC = ["id", "name", "feed_url", "lang", "categories", "reliability", "official", "security", "enabled", "verified", "fail_count", "last_attempt_at", "last_success_at", "last_error"];
-const ART = ["key", "id", "title", "url", "source_id", "category", "lang", "official", "published_at", "updated_at", "collected_at", "sort_ts", "summary", "summary_limited", "importance", "score", "reasons", "cvss", "cvss_source", "links"];
+const ART = ["key", "id", "title", "url", "source_id", "category", "lang", "official", "published_at", "updated_at", "collected_at", "sort_ts", "summary", "summary_limited", "importance", "score", "reasons", "cvss", "cvss_source", "links", "image"];
 
 /** Recharge l'état publié précédemment dans une base SQLite en mémoire (pour reprendre l'historique de 7 jours). */
 export function restoreState(raw: DatabaseSync, st: State): void {
@@ -17,7 +18,7 @@ export function restoreState(raw: DatabaseSync, st: State): void {
   };
   raw.exec("BEGIN");
   ins("sources", SRC, st.sources);
-  ins("articles", [...ART, "title_norm", "desc_norm"], st.articles.map((a) => ({ ...a, reasons: JSON.stringify(a.reasons ?? []), links: JSON.stringify(a.links ?? []), summary: a.summary ?? "", title_norm: normTitle(a.title), desc_norm: "" })));
+  ins("articles", [...ART, "title_norm", "desc_norm"], st.articles.map((a) => ({ ...a, category: migrateCategory(a.title, a.category), reasons: JSON.stringify(a.reasons ?? []), links: JSON.stringify(a.links ?? []), summary: a.summary ?? "", title_norm: normTitle(a.title), desc_norm: "" })));
   ins("article_sources", ["article_id", "source_id", "url", "url_norm", "published_at", "collected_at"], st.article_sources.map((x) => ({ ...x, url_norm: normalizeUrl(x.url), collected_at: st.generated_at })));
   raw.exec("COMMIT");
 }

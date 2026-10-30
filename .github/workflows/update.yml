@@ -33,8 +33,8 @@ jobs:
       - run: npm run build:site
       - name: Enregistrer l'état (branche data, un seul commit)
         run: |
-          mkdir /tmp/s && cp site/data/articles.json /tmp/s/ && cd /tmp/s
-          git init -q -b data && git add articles.json
+          mkdir /tmp/s && cp site/data/articles.json /tmp/s/ && cp -r site/data/logos /tmp/s/logos && cd /tmp/s
+          git init -q -b data && git add articles.json logos
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "état $(date -u +%FT%TZ)"
           git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data
       - uses: actions/upload-pages-artifact@v4

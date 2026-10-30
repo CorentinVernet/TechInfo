@@ -88,6 +88,19 @@ describe("service worker", () => {
     expect(sw.fetchEvent("https://huggingface.co/Xenova/opus-mt-fr-en/resolve/main/x.onnx")).toBeUndefined();
     expect(sw.fetchEvent("https://cdn.jsdelivr.net/npm/x.js")).toBeUndefined();
   });
+  it("les logos viennent du cache sans recharger, et leur cache survit à l'activation", async () => {
+    const fetchSpy = vi.fn(async () => new Response("logo"));
+    const sw = boot(fetchSpy);
+    const store = new Map<string, Response>(), logos = { match: async (r: any) => store.get(r.url)?.clone(), put: async (r: any, v: Response) => { store.set(r.url, v); } };
+    sw.caches.open = (async () => logos) as any;
+    const url = "https://u.github.io/techinfo/data/logos/a-1234.png";
+    expect(await (await sw.fetchEvent(url)!)!.text()).toBe("logo");
+    expect(await (await sw.fetchEvent(url)!)!.text()).toBe("logo");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    sw.caches.keys = (async () => ["techinfo-v0", "techinfo-logos-v1"]) as any;
+    await sw.handlers.activate({ waitUntil: (p: any) => p });
+    expect(sw.caches.delete).not.toHaveBeenCalledWith("techinfo-logos-v1");
+  });
   it("à l'activation, supprime les anciens caches", async () => {
     const sw = boot(async () => new Response("x"));
     await sw.handlers.activate({ waitUntil: (p: any) => p });
