@@ -1,0 +1,16 @@
+{
+  "rules": [
+    { "category": "security", "keywords": ["faille*", "vulnerab*", "cyberattaque*", "cyberattack*", "piratage*", "pirate*", "hack*", "ransomware*", "rancongiciel*", "malware*", "phishing", "hameconnage", "fuite de donnees", "data breach", "zero-day", "zero day", "cybersecurite", "cybersecurity"] },
+    { "category": "ai", "exact": ["AI", "IA", "LLM", "AGI"], "keywords": ["openai", "chatgpt", "claude", "gemini", "copilot", "deepseek", "mistral", "llm", "intelligence artificielle", "artificial intelligence", "machine learning", "deep learning", "chatbot*", "anthropic"] },
+    { "category": "mobile", "keywords": ["iphone*", "ipad*", "android", "smartphone*", "ios", "galaxy", "pixel", "xiaomi", "oneplus", "whatsapp", "app store", "play store"] },
+    { "category": "gaming", "keywords": ["jeu video", "jeux video", "video game*", "xbox", "playstation", "ps5", "nintendo", "switch 2", "steam", "steam deck", "gta"] },
+    { "category": "hardware", "keywords": ["gpu", "cpu", "processeur*", "carte graphique", "cartes graphiques", "graphics card*", "nvidia", "amd", "intel", "ryzen", "geforce", "radeon", "ssd", "ddr5", "puce*", "semiconductor*", "tsmc"] },
+    { "category": "business", "keywords": ["acquisition*", "rachat", "rachete*", "levee de fonds", "funding", "ipo", "bourse", "licenciement*", "layoff*", "antitrust", "amende*", "fined", "earnings", "chiffre d affaires", "revenue", "startup*", "start up", "regulation", "reglementation", "cnil", "lawsuit", "proces"] },
+    { "category": "science", "keywords": ["nasa", "esa", "spacex", "fusee*", "rocket*", "satellite*", "telescope*", "quantique", "quantum", "astronaute*", "astronaut*", "artemis"] },
+    { "category": "systems", "keywords": ["linux", "kernel", "ubuntu", "debian", "fedora", "windows", "macos"] },
+    { "category": "web", "keywords": ["navigateur*", "browser*", "chrome", "firefox", "safari", "edge", "css", "html"] },
+    { "category": "dev", "keywords": ["javascript", "typescript", "python", "rust", "github", "programming", "programmation", "developpeur*", "developer*", "open source", "open-source"] },
+    { "category": "network-cloud", "keywords": ["aws", "azure", "kubernetes", "cloud", "datacenter*", "data center*", "fibre", "5g", "vpn"] },
+    { "category": "selfhost", "keywords": ["auto heberge*", "self hosted", "self hosting", "homelab", "home assistant", "raspberry pi", "nas"] }
+  ]
+}

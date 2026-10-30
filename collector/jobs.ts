@@ -21,7 +21,8 @@ export async function collect(sql: Sql, now = new Date(), log: (m: string) => vo
   try {
     const cfg: any[] = json("config/sources.json");
     sql.exec(cfg.map((s) => `INSERT INTO sources(name,feed_url,site_url,lang,categories,reliability,official,security) VALUES(${q(s.name)},${q(s.feed_url)},${q(s.site_url)},${q(s.lang)},${q(JSON.stringify(s.categories))},${s.reliability},${s.official ? 1 : 0},${s.security ? 1 : 0}) ON CONFLICT(feed_url) DO UPDATE SET name=excluded.name,site_url=excluded.site_url,lang=excluded.lang,categories=excluded.categories,reliability=excluded.reliability,official=excluded.official,security=excluded.security;`).join("\n"));
-    const sources: SourceRow[] = sql.query(`SELECT * FROM sources WHERE enabled=1`).map((r) => ({ ...r, categories: JSON.parse(r.categories), official: !!r.official, security: !!r.security }));
+    const extras = new Map(cfg.map((s) => [s.feed_url, { include: s.include, exclude: s.exclude, maxPerRun: s.maxPerRun, fallback_url: s.fallback_url }]));
+    const sources: SourceRow[] = sql.query(`SELECT * FROM sources WHERE enabled=1`).map((r) => ({ ...r, categories: JSON.parse(r.categories), official: !!r.official, security: !!r.security, ...extras.get(r.feed_url) }));
     const knownUrls = new Set<string>(sql.query(`SELECT url_norm FROM article_sources`).map((r) => r.url_norm));
     const known = sql.query(`SELECT key,title_norm,category,sort_ts FROM articles`).map((r) => ({ key: r.key, titleNorm: r.title_norm, category: r.category, ts: Date.parse(r.sort_ts) }));
     const { statements, results } = await collectSources(sources, { fetchText, now, knownUrls, known, cfg: defaultConfig, dedupe, retentionDays: dedupe.retentionDays, keepPerCategory: dedupe.keepPerCategory, maxAgeDays: dedupe.maxAgeDays });
